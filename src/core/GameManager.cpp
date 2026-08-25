@@ -1,7 +1,10 @@
 #include "GameManager.h"
+#include "TimeManager.h"
 #include <iostream>
 
 using namespace std;
+
+class Player;
 
 GameManager *GameManager::instance = nullptr;
 
@@ -38,12 +41,18 @@ void GameManager::startGame()
 void GameManager::run()
 {
 
-    while (running)
+    while (!time.isGameEnd())
     {
-        cout << "游戏运行中. . ." << endl;
 
-        break;
+        cout << "当前第";
+
+        cout << time.getWeek();
+
+        cout << "周" << endl;
+
+        time.nextWeek();
     }
+    endGame();
 }
 
 void GameManager::endGame()
