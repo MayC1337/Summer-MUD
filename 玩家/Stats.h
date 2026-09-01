@@ -1,8 +1,7 @@
+#ifndef STATS_H
+#define STATS_H
 
-#ifndef SUMMER_MUD_STATS_H
-#define SUMMER_MUD_STATS_H
-
-#include <iosfwd>
+#include <string>
 
 enum class StatType
 {
@@ -13,16 +12,16 @@ enum class StatType
     Stress
 };
 
-const char* to_string(StatType type);
+std::string to_string(StatType type);
 
 class Stats
 {
 public:
     Stats(int intelligence = 0,
-          int eq = 0,
-          int stamina = 0,
-          int health = 0,
-          int stress = 0);
+        int eq = 0,
+        int stamina = 0,
+        int health = 0,
+        int stress = 0);
 
     void modify(StatType type, int change);
     void set(StatType type, int value);
@@ -30,15 +29,13 @@ public:
     void show() const;
 
 private:
+    int clamp(int value) const;
+
     int intelligence_;
     int eq_;
     int stamina_;
     int health_;
     int stress_;
-
-    static int clamp(int value);
-    int& valueOf(StatType type);
-    const int& valueOf(StatType type) const;
 };
 
 #endif
