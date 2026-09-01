@@ -2,8 +2,12 @@
 #define GAMEMANAGER_H
 
 #include "TimeManager.h"
+#include "../action/Action.h"
 #include "../event/EventManager.h"
+#include "../exam/Exam.h"
+#include "../save/SaveManager.h"
 
+#include <memory>
 #include <string>
 
 class Player;
@@ -13,11 +17,15 @@ class GameManager
 private:
     bool running;
     std::string playerName;
-    Player *player;
+    std::unique_ptr<Player> player;
     TimeManager timeManager;
+    Action action;
     EventManager eventManager;
+    Exam exam;
+    SaveManager saveManager;
 
     GameManager();
+    ~GameManager();
 
     void showWelcome() const;
     void createPlayer();

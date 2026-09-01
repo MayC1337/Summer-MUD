@@ -27,6 +27,9 @@ public:
 
     void markTriggered(
         const std::string &eventId);
+
+    const std::set<std::string> &getTriggeredEvents() const;
+    void setTriggeredEvents(const std::set<std::string> &events);
 };
 
 #endif
