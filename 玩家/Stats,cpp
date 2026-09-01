@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 
-const char* to_string(StatType type)
+std::string to_string(StatType type)
 {
     switch (type)
     {
@@ -18,59 +18,55 @@ const char* to_string(StatType type)
 
 Stats::Stats(int intelligence, int eq, int stamina, int health, int stress)
     : intelligence_(clamp(intelligence)),
-      eq_(clamp(eq)),
-      stamina_(clamp(stamina)),
-      health_(clamp(health)),
-      stress_(clamp(stress))
+    eq_(clamp(eq)),
+    stamina_(clamp(stamina)),
+    health_(clamp(health)),
+    stress_(clamp(stress))
 {
 }
 
-int Stats::clamp(int value)
+int Stats::clamp(int value) const
 {
     if (value < 0) return 0;
     if (value > 100) return 100;
     return value;
 }
 
-int& Stats::valueOf(StatType type)
-{
-    switch (type)
-    {
-    case StatType::Intelligence: return intelligence_;
-    case StatType::EQ: return eq_;
-    case StatType::Stamina: return stamina_;
-    case StatType::Health: return health_;
-    case StatType::Stress: return stress_;
-    }
-    throw std::invalid_argument("Unknown stat type");
-}
-
-const int& Stats::valueOf(StatType type) const
-{
-    switch (type)
-    {
-    case StatType::Intelligence: return intelligence_;
-    case StatType::EQ: return eq_;
-    case StatType::Stamina: return stamina_;
-    case StatType::Health: return health_;
-    case StatType::Stress: return stress_;
-    }
-    throw std::invalid_argument("Unknown stat type");
-}
-
 void Stats::modify(StatType type, int change)
 {
-    valueOf(type) = clamp(valueOf(type) + change);
+    switch (type)
+    {
+    case StatType::Intelligence: intelligence_ = clamp(intelligence_ + change); break;
+    case StatType::EQ:           eq_ = clamp(eq_ + change); break;
+    case StatType::Stamina:      stamina_ = clamp(stamina_ + change); break;
+    case StatType::Health:       health_ = clamp(health_ + change); break;
+    case StatType::Stress:       stress_ = clamp(stress_ + change); break;
+    }
 }
 
 void Stats::set(StatType type, int value)
 {
-    valueOf(type) = clamp(value);
+    switch (type)
+    {
+    case StatType::Intelligence: intelligence_ = clamp(value); break;
+    case StatType::EQ:           eq_ = clamp(value); break;
+    case StatType::Stamina:      stamina_ = clamp(value); break;
+    case StatType::Health:       health_ = clamp(value); break;
+    case StatType::Stress:       stress_ = clamp(value); break;
+    }
 }
 
 int Stats::get(StatType type) const
 {
-    return valueOf(type);
+    switch (type)
+    {
+    case StatType::Intelligence: return intelligence_;
+    case StatType::EQ:           return eq_;
+    case StatType::Stamina:      return stamina_;
+    case StatType::Health:       return health_;
+    case StatType::Stress:       return stress_;
+    }
+    throw std::invalid_argument("Unknown StatType");
 }
 
 void Stats::show() const
