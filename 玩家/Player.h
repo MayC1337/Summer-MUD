@@ -1,19 +1,18 @@
+#ifndef PLAYER_H
+#define PLAYER_H
 
-#ifndef SUMMER_MUD_PLAYER_H
-#define SUMMER_MUD_PLAYER_H
-
+#include "Stats.h"
 #include <string>
 #include <memory>
 
-class Stats;
 class Inventory;
 
 class Player
 {
 public:
     Player(const std::string& name,
-           std::unique_ptr<Stats> stats,
-           int money = 0);
+        std::unique_ptr<Stats> stats = nullptr,
+        int money = 0);
 
     const std::string& getName() const;
     int getMoney() const;
