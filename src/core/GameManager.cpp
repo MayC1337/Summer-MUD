@@ -3,7 +3,7 @@
 #include <iostream>
 
 GameManager::GameManager()
-    : running(false), timeManager(TimeManager::DEFAULT_TOTAL_DAYS)
+    : running(false), player(nullptr), timeManager(TimeManager::DEFAULT_TOTAL_DAYS)
 {
 }
 
@@ -17,6 +17,8 @@ void GameManager::startGame()
 {
     showWelcome();
     createPlayer();
+
+    eventManager.loadEvents();
 
     timeManager.reset();
     running = true;
@@ -67,7 +69,7 @@ void GameManager::showWelcome() const
 
 void GameManager::createPlayer()
 {
-    std::cout << "请输入玩家姓名（直接回车使用默认姓名）：";
+    std::cout << "请输入玩家姓名：";
     std::getline(std::cin, playerName);
 
     if (playerName.empty())
@@ -75,7 +77,7 @@ void GameManager::createPlayer()
         playerName = "无名考生";
     }
 
-    // Player 模块接入点：在这里创建 Player，并由 GameManager 持有或注入。
+    // 外部模块依赖：Player 实现接入后在这里创建对象并赋给 player。
     std::cout << "欢迎你，" << playerName << "！高考倒计时 35 天。" << std::endl;
 }
 
@@ -92,14 +94,19 @@ void GameManager::processCurrentDay()
 {
     switch (timeManager.getCurrentDayType())
     {
+
     case TimeManager::DayType::Study:
         executeDailyAction();
+        triggerDailyEvent();
         break;
+
     case TimeManager::DayType::Exam:
         calculateExam();
         break;
+
     case TimeManager::DayType::Rest:
         takeWeeklyRest();
+        triggerDailyEvent();
         break;
     }
 }
@@ -119,4 +126,15 @@ void GameManager::calculateExam()
 void GameManager::takeWeeklyRest()
 {
     std::cout << "周日休息：恢复状态，准备下一周。" << std::endl;
+}
+
+void GameManager::triggerDailyEvent()
+{
+    if (player == nullptr)
+    {
+        return;
+    }
+
+    eventManager.triggerEvent(
+        *player);
 }

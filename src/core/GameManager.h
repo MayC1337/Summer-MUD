@@ -2,15 +2,20 @@
 #define GAMEMANAGER_H
 
 #include "TimeManager.h"
+#include "../event/EventManager.h"
 
 #include <string>
+
+class Player;
 
 class GameManager
 {
 private:
     bool running;
     std::string playerName;
+    Player *player;
     TimeManager timeManager;
+    EventManager eventManager;
 
     GameManager();
 
@@ -21,6 +26,7 @@ private:
     void calculateExam();
     void takeWeeklyRest();
     void showDayHeader() const;
+    void triggerDailyEvent();
 
 public:
     static GameManager &getInstance();
