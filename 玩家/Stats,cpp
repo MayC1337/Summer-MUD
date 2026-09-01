@@ -1,0 +1,80 @@
+
+#include "Stats.h"
+#include <iostream>
+#include <stdexcept>
+
+std::string to_string(StatType type)
+{
+    switch (type)
+    {
+    case StatType::Intelligence: return "智力";
+    case StatType::EQ: return "情商";
+    case StatType::Stamina: return "体力";
+    case StatType::Health: return "健康";
+    case StatType::Stress: return "压力";
+    }
+    return "未知";
+}
+
+Stats::Stats(int intelligence, int eq, int stamina, int health, int stress)
+    : intelligence_(clamp(intelligence)),
+    eq_(clamp(eq)),
+    stamina_(clamp(stamina)),
+    health_(clamp(health)),
+    stress_(clamp(stress))
+{
+}
+
+int Stats::clamp(int value) const
+{
+    if (value < 0) return 0;
+    if (value > 100) return 100;
+    return value;
+}
+
+void Stats::modify(StatType type, int change)
+{
+    switch (type)
+    {
+    case StatType::Intelligence: intelligence_ = clamp(intelligence_ + change); break;
+    case StatType::EQ:           eq_ = clamp(eq_ + change); break;
+    case StatType::Stamina:      stamina_ = clamp(stamina_ + change); break;
+    case StatType::Health:       health_ = clamp(health_ + change); break;
+    case StatType::Stress:       stress_ = clamp(stress_ + change); break;
+    }
+}
+
+void Stats::set(StatType type, int value)
+{
+    switch (type)
+    {
+    case StatType::Intelligence: intelligence_ = clamp(value); break;
+    case StatType::EQ:           eq_ = clamp(value); break;
+    case StatType::Stamina:      stamina_ = clamp(value); break;
+    case StatType::Health:       health_ = clamp(value); break;
+    case StatType::Stress:       stress_ = clamp(value); break;
+    }
+}
+
+int Stats::get(StatType type) const
+{
+    switch (type)
+    {
+    case StatType::Intelligence: return intelligence_;
+    case StatType::EQ:           return eq_;
+    case StatType::Stamina:      return stamina_;
+    case StatType::Health:       return health_;
+    case StatType::Stress:       return stress_;
+    }
+    throw std::invalid_argument("Unknown StatType");
+}
+
+void Stats::show() const
+{
+    std::cout << "----- 属性 -----\n";
+    std::cout << "智力: " << intelligence_ << '\n';
+    std::cout << "情商: " << eq_ << '\n';
+    std::cout << "体力: " << stamina_ << '\n';
+    std::cout << "健康: " << health_ << '\n';
+    std::cout << "压力: " << stress_ << '\n';
+}
