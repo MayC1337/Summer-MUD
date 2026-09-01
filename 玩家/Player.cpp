@@ -1,22 +1,16 @@
-
 #include "Player.h"
-#include "Stats.h"
 #include "Inventory.h"
 #include <iostream>
 #include <stdexcept>
 
-Player::Player(const std::string& name,
-               std::unique_ptr<Stats> stats,
-               int money)
+Player::Player(const std::string& name, std::unique_ptr<Stats> stats, int money)
     : name_(name),
-      stats_(std::move(stats)),
-      money_(money < 0 ? 0 : money),
-      inventory_(std::make_unique<Inventory>())
+    stats_(stats ? std::move(stats) : std::make_unique<Stats>()),
+    money_(money < 0 ? 0 : money),
+    inventory_(std::make_unique<Inventory>())
 {
     if (name_.empty())
         throw std::invalid_argument("Player name cannot be empty");
-    if (!stats_)
-        throw std::invalid_argument("Stats cannot be null");
 }
 
 const std::string& Player::getName() const { return name_; }
