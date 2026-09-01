@@ -1,11 +1,16 @@
 #include "GameManager.h"
+#include "../player/Player.h"
 
 #include <iostream>
+#include <set>
 
 GameManager::GameManager()
-    : running(false), player(nullptr), timeManager(TimeManager::DEFAULT_TOTAL_DAYS)
+    : running(false), player(nullptr), timeManager(TimeManager::DEFAULT_TOTAL_DAYS),
+      saveManager("save.txt")
 {
 }
+
+GameManager::~GameManager() = default;
 
 GameManager &GameManager::getInstance()
 {
@@ -16,11 +21,56 @@ GameManager &GameManager::getInstance()
 void GameManager::startGame()
 {
     showWelcome();
-    createPlayer();
-
     eventManager.loadEvents();
 
-    timeManager.reset();
+    while (true)
+    {
+        std::cout << "1. 新游戏\n2. 继续游戏\n3. 退出\n请选择：";
+        std::string choice;
+        if (!std::getline(std::cin, choice))
+        {
+            return;
+        }
+
+        if (choice == "1")
+        {
+            createPlayer();
+            timeManager.reset();
+            eventManager.setTriggeredEvents(std::set<std::string>());
+            break;
+        }
+
+        if (choice == "2")
+        {
+            if (!saveManager.hasSave())
+            {
+                std::cout << "当前没有存档。\n";
+                continue;
+            }
+
+            player.reset(new Player("无名考生"));
+            if (!saveManager.loadGame(*player, timeManager, eventManager))
+            {
+                player.reset();
+                std::cout << "存档损坏或版本不兼容，读取失败。\n";
+                continue;
+            }
+
+            playerName = player->getName();
+            std::cout << "读档成功：" << playerName << "，已度过 "
+                      << timeManager.getElapsedDays() << " 天。\n";
+            break;
+        }
+
+        if (choice == "3")
+        {
+            std::cout << "游戏已退出。\n";
+            return;
+        }
+
+        std::cout << "无效选择，请重新输入。\n";
+    }
+
     running = true;
     run();
 }
@@ -35,6 +85,11 @@ void GameManager::run()
         const bool weekFinished = timeManager.isEndOfWeek();
         const int finishedWeek = timeManager.getCurrentWeek();
         timeManager.advanceDay();
+
+        if (player && !saveManager.saveGame(*player, timeManager, eventManager))
+        {
+            std::cerr << "警告：自动存档失败。" << std::endl;
+        }
 
         if (weekFinished)
         {
@@ -77,7 +132,7 @@ void GameManager::createPlayer()
         playerName = "无名考生";
     }
 
-    // 外部模块依赖：Player 实现接入后在这里创建对象并赋给 player。
+    player.reset(new Player(playerName));
     std::cout << "欢迎你，" << playerName << "！高考倒计时 35 天。" << std::endl;
 }
 
@@ -113,14 +168,35 @@ void GameManager::processCurrentDay()
 
 void GameManager::executeDailyAction()
 {
-    // Action 模块接入点：Action::execute(player) 应在这里执行并修改玩家属性。
-    std::cout << "日常行动：完成今天的默认学习计划。" << std::endl;
+    if (!player)
+    {
+        return;
+    }
+
+    const ActionTime daySchedule[] = {
+        ActionTime::Morning,
+        ActionTime::Noon,
+        ActionTime::Afternoon,
+        ActionTime::Evening};
+
+    for (ActionTime actionTime : daySchedule)
+    {
+        action.setTime(actionTime);
+        action.executeDailyAction(*player);
+    }
 }
 
 void GameManager::calculateExam()
 {
-    // Exam 模块接入点：Exam::calculate(player.getStats()) 应在这里计算并返回成绩。
-    std::cout << "阶段考试：本周学习成果进入结算。" << std::endl;
+    if (!player)
+    {
+        return;
+    }
+
+    const ExamResult result = exam.takeWeeklyExam(*player);
+    std::cout << "阶段考试：成绩 " << result.score
+              << "，排名 " << result.rank << "。\n"
+              << result.feedback << std::endl;
 }
 
 void GameManager::takeWeeklyRest()

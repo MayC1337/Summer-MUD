@@ -3,7 +3,6 @@
 #include "EventFactory.h"
 
 #include <iostream>
-#include <random>
 
 void EventManager::loadEvents()
 {
@@ -64,4 +63,14 @@ void EventManager::triggerEvent(
     }
     std::cout
         << "今天没有发生特殊事件。\n";
+}
+
+const std::set<std::string> &EventManager::getTriggeredEvents() const
+{
+    return triggeredEvents;
+}
+
+void EventManager::setTriggeredEvents(const std::set<std::string> &events)
+{
+    triggeredEvents = events;
 }

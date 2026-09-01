@@ -18,6 +18,7 @@ public:
 
     void reset();
     bool advanceDay();
+    void setElapsedDays(int days);
 
     int getTotalDays() const;
     int getElapsedDays() const;

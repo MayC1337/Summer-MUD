@@ -27,6 +27,16 @@ bool TimeManager::advanceDay()
     return !isFinished();
 }
 
+void TimeManager::setElapsedDays(int days)
+{
+    if (days < 0 || days > totalDays)
+    {
+        throw std::out_of_range("elapsed days out of range");
+    }
+
+    elapsedDays = days;
+}
+
 int TimeManager::getTotalDays() const
 {
     return totalDays;

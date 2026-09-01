@@ -1,16 +1,6 @@
 #include "Event.h"
-
-#if __has_include("../player/Player.h") && __has_include("../player/Stats.h")
 #include "../player/Player.h"
 #include "../player/Stats.h"
-#define SUMMER_MUD_HAS_PLAYER_MODULE 1
-#elif __has_include("../player/Player.h") && __has_include("../player/stats.h")
-#include "../player/Player.h"
-#include "../player/stats.h"
-#define SUMMER_MUD_HAS_PLAYER_MODULE 1
-#else
-#define SUMMER_MUD_HAS_PLAYER_MODULE 0
-#endif
 
 #include <iostream>
 
@@ -60,7 +50,6 @@ bool Event::canTrigger(
 
 void Event::applyChoice(Player &player, int choice) const
 {
-#if SUMMER_MUD_HAS_PLAYER_MODULE
     Stats &stats = player.getStats();
 
     if (id == "night_study")
@@ -120,9 +109,4 @@ void Event::applyChoice(Player &player, int choice) const
             break;
         }
     }
-#else
-    (void)player;
-    (void)choice;
-    std::cout << "玩家模块尚未接入，事件效果暂未应用。\n";
-#endif
 }
