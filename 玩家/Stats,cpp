@@ -1,0 +1,122 @@
+
+#include "Stats.h"
+
+#include <iostream>
+#include <stdexcept>
+
+Stats::Stats(
+    int intelligence,
+    int eq,
+    int stamina,
+    int health,
+    int stress,
+    int chinese,
+    int math,
+    int english,
+    int science
+)
+    : intelligence_(clamp(intelligence)),
+      eq_(clamp(eq)),
+      stamina_(clamp(stamina)),
+      health_(clamp(health)),
+      stress_(clamp(stress)),
+      chinese_(clamp(chinese)),
+      math_(clamp(math)),
+      english_(clamp(english)),
+      science_(clamp(science))
+{
+}
+
+int Stats::clamp(int value)
+{
+    if (value < 0)
+    {
+        return 0;
+    }
+
+    if (value > 100)
+    {
+        return 100;
+    }
+
+    return value;
+}
+
+int& Stats::valueOf(StatType type)
+{
+    switch (type)
+    {
+    case StatType::Intelligence:
+        return intelligence_;
+    case StatType::EQ:
+        return eq_;
+    case StatType::Stamina:
+        return stamina_;
+    case StatType::Health:
+        return health_;
+    case StatType::Stress:
+        return stress_;
+    case StatType::Chinese:
+        return chinese_;
+    case StatType::Math:
+        return math_;
+    case StatType::English:
+        return english_;
+    case StatType::Science:
+        return science_;
+    }
+
+    throw std::invalid_argument("Unknown stat type");
+}
+
+const int& Stats::valueOf(StatType type) const
+{
+    switch (type)
+    {
+    case StatType::Intelligence:
+        return intelligence_;
+    case StatType::EQ:
+        return eq_;
+    case StatType::Stamina:
+        return stamina_;
+    case StatType::Health:
+        return health_;
+    case StatType::Stress:
+        return stress_;
+    case StatType::Chinese:
+        return chinese_;
+    case StatType::Math:
+        return math_;
+    case StatType::English:
+        return english_;
+    case StatType::Science:
+        return science_;
+    }
+
+    throw std::invalid_argument("Unknown stat type");
+}
+
+void Stats::modify(StatType type, int change)
+{
+    int& stat = valueOf(type);
+    stat = clamp(stat + change);
+}
+
+int Stats::get(StatType type) const
+{
+    return valueOf(type);
+}
+
+void Stats::show() const
+{
+    std::cout << "----- Stats -----" << '\n';
+    std::cout << "Intelligence: " << intelligence_ << '\n';
+    std::cout << "EQ:           " << eq_ << '\n';
+    std::cout << "Stamina:      " << stamina_ << '\n';
+    std::cout << "Health:       " << health_ << '\n';
+    std::cout << "Stress:       " << stress_ << '\n';
+    std::cout << "Chinese:      " << chinese_ << '\n';
+    std::cout << "Math:         " << math_ << '\n';
+    std::cout << "English:      " << english_ << '\n';
+    std::cout << "Science:      " << science_ << '\n';
+}
