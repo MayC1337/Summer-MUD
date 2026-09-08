@@ -18,10 +18,10 @@ private:
     std::vector<std::string> choices;
 
     Event(
-        const std::string &id,
-        const std::string &title,
-        const std::string &description,
-        const std::vector<std::string> &choice);
+        const std::string &eventId,
+        const std::string &eventTitle,
+        const std::string &eventDescription,
+        const std::vector<std::string> &eventChoices);
 
     friend class EventFactory;
 

@@ -17,12 +17,15 @@ class Action
 {
 private:
     ActionTime currentTime;
+    bool exitRequested;
 
 public:
     Action();
 
     void setTime(ActionTime time);
     ActionTime getTime() const;
+    bool isExitRequested() const;
+    void clearExitRequest();
 
     void study(Player& player);
     void rest(Player& player);
@@ -42,6 +45,14 @@ private:
     void takeNap(Player& player);
     void exercise(Player& player);
     void earlyRest(Player& player);
+
+    void visitLibrary(Player& player);
+    void visitGym(Player& player);
+    void visitArcade(Player& player);
+    void visitShop(Player& player);
+    void visitHome(Player& player);
+    void buyItem(Player& player, const std::string& id,
+        const std::string& name, int price);
 
     void eatSnack(Player& player);
     void playMP4(Player& player);

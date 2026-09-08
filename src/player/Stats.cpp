@@ -1,7 +1,22 @@
 
 #include "Stats.h"
+#include "../core/ConsoleUI.h"
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
+
+namespace
+{
+void showBar(const char *name, int value)
+{
+    std::ostringstream line;
+    line << name << "  [" << ConsoleUI::makeBar(value) << "] ";
+    if (value < 100) line << ' ';
+    if (value < 10) line << ' ';
+    line << value;
+    ConsoleUI::boxLine(line.str());
+}
+}
 
 std::string to_string(StatType type)
 {
@@ -92,14 +107,15 @@ int Stats::get(StatType type) const
 
 void Stats::show() const
 {
-    std::cout << "----- 属性 -----\n";
-    std::cout << "智力: " << intelligence_ << '\n';
-    std::cout << "情商: " << eq_ << '\n';
-    std::cout << "体力: " << stamina_ << '\n';
-    std::cout << "健康: " << health_ << '\n';
-    std::cout << "压力: " << stress_ << '\n';
-    std::cout << "语文: " << chinese_ << '\n';
-    std::cout << "数学: " << math_ << '\n';
-    std::cout << "英语: " << english_ << '\n';
-    std::cout << "理综: " << science_ << '\n';
+    ConsoleUI::boxDivider("核心状态");
+    showBar("智力", intelligence_);
+    showBar("情商", eq_);
+    showBar("体力", stamina_);
+    showBar("健康", health_);
+    showBar("压力", stress_);
+    ConsoleUI::boxDivider("学科能力");
+    showBar("语文", chinese_);
+    showBar("数学", math_);
+    showBar("英语", english_);
+    showBar("理综", science_);
 }

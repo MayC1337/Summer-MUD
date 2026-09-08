@@ -31,7 +31,7 @@ void Item::use(Player& player) const
 void Item::show() const
 {
     std::cout << "  [" << id_ << "] " << type_
-              << "  Price: " << price_;
+              << "  价格: " << price_;
     if (!effects_.empty())
     {
         std::cout << "  Effects: ";

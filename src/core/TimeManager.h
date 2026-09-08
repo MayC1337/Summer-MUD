@@ -14,7 +14,7 @@ public:
     static const int DAYS_PER_WEEK = 7;
     static const int DEFAULT_TOTAL_DAYS = 35;
 
-    explicit TimeManager(int totalDays = DEFAULT_TOTAL_DAYS);
+    explicit TimeManager(int totalDayCount = DEFAULT_TOTAL_DAYS);
 
     void reset();
     bool advanceDay();

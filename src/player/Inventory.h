@@ -11,6 +11,7 @@ class Inventory
 {
 public:
     void addItem(std::unique_ptr<Item> item);
+    void clear();
     bool removeItem(const std::string& id);
     bool hasItem(const std::string& id) const;
     const std::vector<std::unique_ptr<Item>>& getItems() const;

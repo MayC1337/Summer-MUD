@@ -2,18 +2,35 @@
 
 #include "../core/TimeManager.h"
 #include "../event/EventManager.h"
+#include "../player/Inventory.h"
+#include "../player/Item.h"
 #include "../player/Player.h"
 #include "../player/Stats.h"
 
 #include <fstream>
+#include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace
 {
-const char *const SAVE_VERSION = "SummerMUDSaveV1";
+const char *const SAVE_VERSION = "SummerMUDSaveV3";
+const char *const PREVIOUS_SAVE_VERSION = "SummerMUDSaveV2";
+const char *const LEGACY_SAVE_VERSION = "SummerMUDSaveV1";
 const std::size_t MAX_SAVED_EVENTS = 10000;
+const std::size_t MAX_SAVED_ITEMS = 1000;
+
+std::unique_ptr<Item> createSavedItem(const std::string &id)
+{
+    if (id == "snack") return std::make_unique<Item>(id, "零食", 20);
+    if (id == "novel") return std::make_unique<Item>(id, "小说", 80);
+    if (id == "mp4") return std::make_unique<Item>(id, "MP4", 300);
+    if (id == "phone") return std::make_unique<Item>(id, "手机", 800);
+    return nullptr;
+}
 
 bool readIntLine(std::istream &input, int &value)
 {
@@ -78,6 +95,20 @@ bool SaveManager::saveGame(
         output << eventId << '\n';
     }
 
+    const auto &items = player.getInventory().getItems();
+    output << items.size() << '\n';
+    for (const auto &item : items)
+    {
+        output << item->getId() << '\n';
+    }
+
+    const auto &eventChoices = eventManager.getEventChoices();
+    output << eventChoices.size() << '\n';
+    for (const auto &entry : eventChoices)
+    {
+        output << entry.first << ' ' << entry.second << '\n';
+    }
+
     output.flush();
     return static_cast<bool>(output);
 }
@@ -100,7 +131,9 @@ bool SaveManager::loadGame(
     int elapsedDays = 0;
     int eventCount = 0;
 
-    if (!std::getline(input, version) || version != SAVE_VERSION ||
+    if (!std::getline(input, version) ||
+        (version != SAVE_VERSION && version != PREVIOUS_SAVE_VERSION &&
+         version != LEGACY_SAVE_VERSION) ||
         !std::getline(input, name) || name.empty() ||
         !readIntLine(input, money) || money < 0)
     {
@@ -142,6 +175,59 @@ bool SaveManager::loadGame(
         }
     }
 
+    std::vector<std::string> itemIds;
+    if (version == SAVE_VERSION || version == PREVIOUS_SAVE_VERSION)
+    {
+        int itemCount = 0;
+        if (!readIntLine(input, itemCount) || itemCount < 0 ||
+            static_cast<std::size_t>(itemCount) > MAX_SAVED_ITEMS)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < itemCount; ++i)
+        {
+            std::string itemId;
+            if (!std::getline(input, itemId) || !createSavedItem(itemId))
+            {
+                return false;
+            }
+            itemIds.push_back(itemId);
+        }
+    }
+
+
+    std::map<std::string, int> savedChoices;
+    if (version == SAVE_VERSION)
+    {
+        int choiceCount = 0;
+        if (!readIntLine(input, choiceCount) || choiceCount < 0 ||
+            static_cast<std::size_t>(choiceCount) > MAX_SAVED_EVENTS)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < choiceCount; ++i)
+        {
+            std::string line;
+            if (!std::getline(input, line))
+            {
+                return false;
+            }
+
+            std::istringstream parser(line);
+            std::string eventId;
+            int choice = 0;
+            std::string extra;
+            if (!(parser >> eventId >> choice) || (parser >> extra) ||
+                choice < 1 || choice > 3 || !triggered.count(eventId) ||
+                !savedChoices.emplace(eventId, choice).second)
+            {
+                return false;
+            }
+        }
+    }
+
     std::string trailing;
     while (std::getline(input, trailing))
     {
@@ -168,6 +254,14 @@ bool SaveManager::loadGame(
 
         timeManager.setElapsedDays(elapsedDays);
         eventManager.setTriggeredEvents(triggered);
+        eventManager.setEventChoices(savedChoices);
+
+        Inventory &inventory = player.getInventory();
+        inventory.clear();
+        for (const std::string &itemId : itemIds)
+        {
+            inventory.addItem(createSavedItem(itemId));
+        }
     }
     catch (...)
     {

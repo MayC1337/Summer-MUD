@@ -5,6 +5,7 @@
 #include "../action/Action.h"
 #include "../event/EventManager.h"
 #include "../exam/Exam.h"
+#include "../exam/Ending.h"
 #include "../save/SaveManager.h"
 
 #include <memory>
@@ -22,7 +23,9 @@ private:
     Action action;
     EventManager eventManager;
     Exam exam;
+    Ending ending;
     SaveManager saveManager;
+    int lastWeeklyScore;
 
     GameManager();
     ~GameManager();
@@ -34,6 +37,10 @@ private:
     void calculateExam();
     void takeWeeklyRest();
     void showDayHeader() const;
+    void showChapterIntro() const;
+    void showDailyNarration() const;
+    void showExamDetails(const ExamResult &result) const;
+    void showGrowthReport(const ExamResult &result) const;
     void triggerDailyEvent();
 
 public:
