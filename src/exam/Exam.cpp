@@ -12,47 +12,67 @@ namespace
 int calculateSubjectScore(
     const Stats& stats,
     StatType subject,
+    int maximumScore,
     int randomBonus)
 {
-    int score = static_cast<int>(std::lround(
-        stats.get(subject) * 0.72 +
+    const int percentage = std::clamp(static_cast<int>(std::lround(
+        stats.get(subject) * 0.77 +
         stats.get(StatType::Intelligence) * 0.12 +
         stats.get(StatType::Health) * 0.08 +
         stats.get(StatType::Stamina) * 0.03 -
-        stats.get(StatType::Stress) * 0.08 + randomBonus));
-    return std::clamp(score, 0, 100);
+        stats.get(StatType::Stress) * 0.08 + randomBonus)), 0, 100);
+    return static_cast<int>(std::lround(
+        percentage * maximumScore / 100.0));
 }
 
 std::string createFeedback(int score)
 {
-    if (score >= 90) return "发挥十分出色，你已经做好了充分准备！";
-    if (score >= 80) return "成绩优秀，保持现在的节奏。";
-    if (score >= 70) return "成绩良好，还有继续提升的空间。";
-    if (score >= 60) return "已经达到及格线，但薄弱科目仍需加强。";
+    if (score >= 690) return "顶尖发挥，你已经站在极高的分数段。";
+    if (score >= 630) return "成绩非常优秀，重点高校值得冲刺。";
+    if (score >= 600) return "成绩优秀，志愿选择已经相当丰富。";
+    if (score >= 540) return "成绩良好，仍有继续提升的空间。";
+    if (score >= 450) return "达到本科模拟线，薄弱科目仍需加强。";
     return "成绩不够理想，需要调整学习和休息安排。";
+}
+
+std::string createUniversity(int score)
+{
+    if (score >= 700) return "清华大学 / 北京大学";
+    if (score >= 680) return "复旦大学 / 上海交通大学 / 浙江大学";
+    if (score >= 650) return "南京大学 / 中国科学技术大学";
+    if (score >= 630) return "武汉大学 / 华中科技大学 / 中山大学";
+    if (score >= 625) return "山东大学 / 中国海洋大学（冲刺）";
+    if (score >= 615) return "中国海洋大学（重点推荐）";
+    if (score >= 600) return "中国石油大学（华东） / 青岛大学";
+    if (score >= 570) return "省属重点大学";
+    if (score >= 510) return "公办本科院校";
+    if (score >= 450) return "本科院校";
+    return "专科、复读或其他成长路线";
 }
 }
 
 int Exam::calcRank(int score) {
-    if (score >= 90) return 1;      // A
-    else if (score >= 80) return 2; // B
-    else if (score >= 70) return 3; // C
-    else if (score >= 60) return 4; // D
+    if (score >= 660) return 1;      // A
+    else if (score >= 600) return 2; // B
+    else if (score >= 540) return 3; // C
+    else if (score >= 450) return 4; // D
     else return 5;                  // E
 }
 
 ExamResult Exam::takeWeeklyExam(Player& player1) {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(-5, 5);
     Stats& stats = player1.getStats();
+    const int fluctuation = stats.get(StatType::Intelligence) >= 80 ? 2 :
+        stats.get(StatType::Intelligence) >= 60 ? 3 : 5;
+    std::uniform_int_distribution<> dist(-fluctuation, fluctuation);
     ExamResult result;
-    result.chineseScore = calculateSubjectScore(stats, StatType::Chinese, dist(gen));
-    result.mathScore = calculateSubjectScore(stats, StatType::Math, dist(gen));
-    result.englishScore = calculateSubjectScore(stats, StatType::English, dist(gen));
-    result.scienceScore = calculateSubjectScore(stats, StatType::Science, dist(gen));
+    result.chineseScore = calculateSubjectScore(stats, StatType::Chinese, 150, dist(gen));
+    result.mathScore = calculateSubjectScore(stats, StatType::Math, 150, dist(gen));
+    result.englishScore = calculateSubjectScore(stats, StatType::English, 150, dist(gen));
+    result.scienceScore = calculateSubjectScore(stats, StatType::Science, 300, dist(gen));
     const int score = (result.chineseScore + result.mathScore +
-                       result.englishScore + result.scienceScore) / 4;
+                       result.englishScore + result.scienceScore);
     int rank = calcRank(score);
     result.score = score;
     result.rank = rank;
@@ -65,15 +85,16 @@ ExamResult Exam::takeFinalExam(Player& player1) {
 
     Stats& stats = player1.getStats();
     ExamResult result;
-    result.chineseScore = calculateSubjectScore(stats, StatType::Chinese, num);
-    result.mathScore = calculateSubjectScore(stats, StatType::Math, num);
-    result.englishScore = calculateSubjectScore(stats, StatType::English, num);
-    result.scienceScore = calculateSubjectScore(stats, StatType::Science, num);
+    result.chineseScore = calculateSubjectScore(stats, StatType::Chinese, 150, num);
+    result.mathScore = calculateSubjectScore(stats, StatType::Math, 150, num);
+    result.englishScore = calculateSubjectScore(stats, StatType::English, 150, num);
+    result.scienceScore = calculateSubjectScore(stats, StatType::Science, 300, num);
     const int score = (result.chineseScore + result.mathScore +
-                       result.englishScore + result.scienceScore) / 4;
+                       result.englishScore + result.scienceScore);
     int rank = calcRank(score);
     result.score = score;
     result.rank = rank;
     result.feedback = createFeedback(score);
+    result.university = createUniversity(score);
     return result;
 }

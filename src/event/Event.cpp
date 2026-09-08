@@ -1,4 +1,5 @@
 #include "Event.h"
+#include "StoryData.h"
 #include "../player/Inventory.h"
 #include "../player/Player.h"
 #include "../player/Stats.h"
@@ -63,6 +64,15 @@ bool Event::canTrigger(
 void Event::applyChoice(Player &player, int choice) const
 {
     Stats &stats = player.getStats();
+    if (const auto* node = StoryData::find(id))
+    {
+        if (choice < 1 || choice > 3) return;
+        const auto& selected = node->choices[static_cast<std::size_t>(choice - 1)];
+        stats.modify(selected.stat, selected.delta);
+        stats.modify(StatType::Stress, selected.stress);
+        std::cout << selected.reply << '\n';
+        return;
+    }
 
     if (id == "night_study")
     {

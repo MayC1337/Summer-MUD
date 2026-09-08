@@ -1,17 +1,40 @@
 #include "Action.h"
+#include "../core/GameProgress.h"
+#include "../world/CampusMap.h"
 #include "../command/CommandParser.h"
+#include "../core/ConsoleUI.h"
 #include "../player/Inventory.h"
 #include "../player/Item.h"
 #include "../player/Player.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <random>
 
 Action::Action()
-    : currentTime(ActionTime::Morning), exitRequested(false)
+    : currentTime(ActionTime::Morning), currentDayOfWeek(1), exitRequested(false)
 {
+}
+
+void Action::setWorld(CampusMap* map) { world = map; }
+void Action::captureGoal(GameProgress& progress) const
+{
+    progress.dailyGoal = dailyGoal;
+    progress.goalSubject = static_cast<int>(goalSubject);
+    progress.goalStart = goalStart;
+}
+void Action::restoreGoal(const GameProgress& progress)
+{
+    dailyGoal = progress.dailyGoal;
+    goalSubject = static_cast<StatType>(progress.goalSubject);
+    goalStart = progress.goalStart;
+}
+
+void Action::setDayOfWeek(int dayOfWeek)
+{
+    currentDayOfWeek = std::clamp(dayOfWeek, 1, 7);
 }
 
 void Action::setTime(ActionTime time)
@@ -88,13 +111,37 @@ double Action::getStudyMultiplier(Player& player)
     return multiplier;
 }
 
+StatType Action::getScheduledSubject() const
+{
+    const StatType subjects[] = {
+        StatType::Chinese, StatType::Math, StatType::English, StatType::Science};
+    const int lessonIndex = currentDayOfWeek - 1;
+    return subjects[lessonIndex % 4];
+}
+
+int Action::calculateStudyGain(Player& player, StatType subject, int baseGain)
+{
+    const int ability = player.getStats().get(subject);
+    int adjustedBase = baseGain;
+    if (ability >= 90)
+        adjustedBase = 1;
+    else if (ability >= 80)
+        adjustedBase = std::min(adjustedBase, 2);
+    else if (ability >= 60)
+        adjustedBase = std::min(adjustedBase, 3);
+
+    const int gain = static_cast<int>(std::lround(
+        adjustedBase * getStudyMultiplier(player)));
+    return std::max(1, gain);
+}
+
 StatType Action::chooseSubject()
 {
     std::cout << "\n请选择学习科目：\n";
     std::cout << "1. 语文\n";
     std::cout << "2. 数学\n";
     std::cout << "3. 英语\n";
-    std::cout << "4. 科学\n";
+    std::cout << "4. 理综\n";
 
     int choice = 0;
     if (!CommandParser::readChoice(choice, 1, 4))
@@ -118,20 +165,23 @@ void Action::attendClass(Player& player)
 {
     std::cout << "\n========== 认真听课 ==========\n";
 
-    StatType subject = chooseSubject();
-    double multiplier = getStudyMultiplier(player);
-    int gain = static_cast<int>(5 * multiplier);
-
-    if (gain < 0)
-        gain = 0;
+    const StatType subject = getScheduledSubject();
+    const double multiplier = getStudyMultiplier(player);
+    const int gain = calculateStudyGain(player, subject, 3);
+    const bool gainedInsight = currentTime == ActionTime::Afternoon &&
+        player.getStats().get(StatType::Intelligence) < 75;
 
     modifyStat(player, subject, gain);
-    modifyStat(player, StatType::Stress, 6);
+    if (gainedInsight)
+        modifyStat(player, StatType::Intelligence, 1);
+    modifyStat(player, StatType::Stress, 4);
     modifyStat(player, StatType::Stamina, -3);
 
-    std::cout << "你认真听了一节课。\n";
-    std::cout << "对应科目熟练度 +" << gain << "\n";
-    std::cout << "压力 +6，体力 -3\n";
+    std::cout << "今天这节是" << to_string(subject) << "课，你跟着老师梳理了重点。\n";
+    std::cout << to_string(subject) << " +" << gain;
+    if (gainedInsight) std::cout << "，理解力积累使智力 +1";
+    std::cout << '\n';
+    std::cout << "压力 +4，体力 -3\n";
 
     if (multiplier < 1.0)
         std::cout << "由于你的状态不佳，学习效率下降了。\n";
@@ -155,19 +205,35 @@ void Action::selfStudy(Player& player)
     std::cout << "\n========== 自习 ==========\n";
 
     StatType subject = chooseSubject();
-    double multiplier = getStudyMultiplier(player);
-    int gain = static_cast<int>(5 * multiplier);
-
-    if (gain < 0)
-        gain = 0;
+    std::cout << "1. 补基础（薄弱科收益高；压力 +6，体力 -5）\n"
+              << "2. 整理错题（科目 +1~3，智力 +1；压力 +5，体力 -4）\n"
+              << "3. 挑战难题（科目 +0~6；压力 +12，体力 -10）\n";
+    int method = 0;
+    if (!CommandParser::readChoice(method, 1, 3)) return;
+    const double multiplier = getStudyMultiplier(player);
+    const int ability = player.getStats().get(subject);
+    int gain = calculateStudyGain(player, subject, method == 2 ? 3 : 5);
+    if (method == 1 && ability >= 80) gain = 1;
+    if (method == 3)
+    {
+        const bool solved = checkCaught(ability >= 70 ? 65 : 35);
+        gain = solved ? calculateStudyGain(player, subject, 6) : 0;
+        std::cout << (solved ? "关键一步终于被你突破了。\n" : "这道难题暂时没有解开，下次先检查基础。\n");
+    }
+    const int stressCost = method == 1 ? 6 : method == 2 ? 5 : 12;
+    const int staminaCost = method == 1 ? 5 : method == 2 ? 4 : 10;
 
     modifyStat(player, subject, gain);
-    modifyStat(player, StatType::Stress, 8);
-    modifyStat(player, StatType::Stamina, -5);
+    if (method == 2) modifyStat(player, StatType::Intelligence, 1);
+    modifyStat(player, StatType::Stress, stressCost);
+    modifyStat(player, StatType::Stamina, -staminaCost);
 
     std::cout << "你完成了一次自习。\n";
     std::cout << "对应科目熟练度 +" << gain << "\n";
-    std::cout << "压力 +8，体力 -5\n";
+    std::cout << "压力 +" << stressCost << "，体力 -" << staminaCost << '\n';
+    if (method == 2) std::cout << "智力 +1，整理思路有助于减少周考波动。\n";
+    if (multiplier < 1.0)
+        std::cout << "状态不佳让本次自习的效率打了折扣。\n";
 }
 
 void Action::takeNap(Player& player)
@@ -200,8 +266,8 @@ void Action::study(Player& player)
         currentTime == ActionTime::Afternoon)
     {
         std::cout << "\n========== 学习 ==========\n";
-        std::cout << "1. 认真听课（科目基础 +5，压力 +6，体力 -3）\n";
-        std::cout << "2. 自习（科目基础 +5，压力 +8，体力 -5）\n";
+        std::cout << "1. 认真听课（按课表，科目 +1~3，压力 +4，体力 -3）\n";
+        std::cout << "2. 专项练习（自由选科：补基础 / 错题 / 难题）\n";
 
         int choice = 0;
         if (!CommandParser::readChoice(choice, 1, 2))
@@ -427,13 +493,14 @@ void Action::executeClassAction(Player& player)
     while (true)
     {
         std::cout << "\n========== 课堂行动 ==========\n";
-        std::cout << "1. 认真听课（科目基础 +5，压力 +6，体力 -3）\n";
+        std::cout << "1. 认真听课（按课表，科目 +1~3，压力 +4，体力 -3）\n";
         std::cout << "2. 上课睡觉（压力 -12，体力 +10，健康 +2）\n";
         std::cout << "3. 玩手机（需持有；压力 -15，可能被没收）\n";
         std::cout << "4. 玩MP4（需购买；压力 -10，可能被没收）\n";
         std::cout << "5. 看小说（需购买；压力 -10，可能被没收）\n";
         std::cout << "6. 吃零食（需购买并消耗；压力 -8）\n";
-        std::cout << "7. 自习（科目基础 +5，压力 +8，体力 -5）\n";
+        std::cout << "7. 专项练习（自由选科：补基础 / 错题 / 难题）\n";
+        std::cout << "本节课：" << to_string(getScheduledSubject()) << "；智力低于75时听课额外 +1。\n";
 
         int choice = 0;
         if (!CommandParser::readChoice(choice, 1, 7))
@@ -470,7 +537,7 @@ void Action::executeNoonAction(Player& player)
     {
         std::cout << "\n========== 午间行动 ==========\n";
         std::cout << "1. 睡午觉（压力 -10，体力 +15，健康 +2）\n";
-        std::cout << "2. 自习（科目基础 +5，压力 +8，体力 -5）\n";
+        std::cout << "2. 好好吃午饭（金钱 -15，体力 +10，健康 +2）\n";
         std::cout << "3. 和同学交流（情商提升，压力降低）\n";
         if (hasItem(player, "phone"))
             std::cout << "4. 玩手机（压力 -15，可能被没收）\n";
@@ -493,7 +560,17 @@ void Action::executeNoonAction(Player& player)
         switch (choice)
         {
         case 1: takeNap(player); break;
-        case 2: selfStudy(player); break;
+        case 2:
+            if (player.getMoney() < 15)
+            {
+                std::cout << "零钱不足，先换个安排。本次行动未消耗。\n";
+                continue;
+            }
+            player.changeMoney(-15);
+            modifyStat(player, StatType::Stamina, 10);
+            modifyStat(player, StatType::Health, 2);
+            std::cout << "热饭让胃和心都踏实下来。金钱 -15，体力 +10，健康 +2\n";
+            break;
         case 3: socialize(player); break;
         case 4: playPhone(player); break;
         case 5: playMP4(player); break;
@@ -505,8 +582,8 @@ void Action::executeNoonAction(Player& player)
 void Action::visitLibrary(Player& player)
 {
     std::cout << "\n========== 图书馆 ==========\n";
-    std::cout << "1. 专心自习（科目基础 +5，压力 +8，体力 -5）\n";
-    std::cout << "2. 整理错题（科目 +3，智力 +2，压力 +5，体力 -4）\n";
+    std::cout << "1. 专项练习（补基础 / 错题 / 难题；进入后显示代价）\n";
+    std::cout << "2. 整理错题（科目 +1~3，智力 +2，压力 +5，体力 -4）\n";
 
     int choice = 0;
     if (!CommandParser::readChoice(choice, 1, 2))
@@ -519,11 +596,13 @@ void Action::visitLibrary(Player& player)
     }
 
     const StatType subject = chooseSubject();
-    modifyStat(player, subject, 3);
+    const int gain = calculateStudyGain(player, subject, 3);
+    modifyStat(player, subject, gain);
     modifyStat(player, StatType::Intelligence, 2);
     modifyStat(player, StatType::Stress, 5);
     modifyStat(player, StatType::Stamina, -4);
-    std::cout << "你整理了近期错题。对应科目 +3，智力 +2，压力 +5，体力 -4\n";
+    std::cout << "你整理了近期错题。" << to_string(subject) << " +" << gain
+              << "，智力 +2，压力 +5，体力 -4\n";
 }
 
 void Action::visitGym(Player& player)
@@ -647,25 +726,75 @@ void Action::visitHome(Player& player)
 
 void Action::executeEveningAction(Player& player)
 {
+    if (world) world->look();
     std::cout << "\n========== 晚间行动 ==========\n";
     std::cout << "1. 图书馆（学习与整理错题）\n";
     std::cout << "2. 体育馆（锻炼或和同学打球）\n";
     std::cout << "3. 游戏厅（花钱娱乐）\n";
     std::cout << "4. 商店（购买道具）\n";
     std::cout << "5. 家（休息或陪伴家人）\n";
+    std::cout << "6. 在当前位置活动（map 看地图，方向命令移动）\n";
     std::cout << "0. 保存当前进度并退出\n";
 
     int choice = 0;
-    if (!CommandParser::readChoice(choice, 0, 5))
+    if (!CommandParser::readChoice(choice, 0, 6))
     {
         return;
     }
 
+    if (world && choice >= 1 && choice <= 5)
+    {
+        const char* destinations[] = {"library", "gym", "arcade", "shop", "home"};
+        world->travelTo(destinations[choice - 1]);
+    }
+    if (choice == 6)
+    {
+        const std::string location = world ? world->currentRoom().id : "home";
+        if (location == "library" || location == "classroom") visitLibrary(player);
+        else if (location == "gym" || location == "gate") exercise(player);
+        else if (location == "arcade") visitArcade(player);
+        else if (location == "shop") visitShop(player);
+        else if (location == "home") visitHome(player);
+        else if (location == "office")
+        {
+            std::cout << "你带着问题整理思路，向老师请教后进行专项练习。\n";
+            selfStudy(player);
+        }
+        else
+        {
+            std::cout << "1. 吃晚饭（金钱 -15，体力 +10，健康 +2）\n"
+                      << "2. 在食堂歇一会（压力 -5）\n";
+            int meal = 0;
+            while (CommandParser::readChoice(meal, 1, 2))
+            {
+                if (meal == 1 && player.getMoney() < 15)
+                {
+                    CommandParser::cancelReplay();
+                    std::cout << "零钱不足，换个安排吧。\n";
+                    continue;
+                }
+                if (meal == 1)
+                {
+                    player.changeMoney(-15);
+                    modifyStat(player, StatType::Stamina, 10);
+                    modifyStat(player, StatType::Health, 2);
+                    std::cout << "热饭下肚。金钱 -15，体力 +10，健康 +2。\n";
+                }
+                else
+                {
+                    modifyStat(player, StatType::Stress, -5);
+                    std::cout << "坐在空下来的饭桌旁歇一会，压力 -5。\n";
+                }
+                break;
+            }
+        }
+        return;
+    }
     switch (choice)
     {
     case 0:
         exitRequested = true;
-        std::cout << "今天的行动到此结束，正在保存进度。\n";
+        std::cout << "正在保存当前时段，下次仍从这里继续。\n";
         break;
 
     case 1:
@@ -696,11 +825,13 @@ void Action::executeEveningAction(Player& player)
 
 void Action::executeDailyAction(Player& player)
 {
+    ConsoleUI::showPeriod(static_cast<int>(currentTime),
+        player.getStats().get(StatType::Stamina), player.getStats().get(StatType::Stress));
     switch (currentTime)
     {
     case ActionTime::Morning:
         std::cout << "\n【上午】\n";
-        executeClassAction(player);
+        executeMorningAction(player);
         break;
 
     case ActionTime::Noon:
@@ -720,6 +851,75 @@ void Action::executeDailyAction(Player& player)
     }
 
     showActionResult(player);
+}
+
+void Action::beginDay(Player& player)
+{
+    const StatType subjects[] = {StatType::Chinese, StatType::Math, StatType::English, StatType::Science};
+    goalSubject = subjects[0];
+    for (StatType subject : subjects)
+        if (player.getStats().get(subject) < player.getStats().get(goalSubject)) goalSubject = subject;
+    std::cout << "\n今天的小目标（完成只写入日记，不额外刷属性）：\n"
+              << "1. 补一补" << to_string(goalSubject) << "（今天提升至少2点）\n"
+              << "2. 照顾好状态（结束时体力至少50、压力不超过50）\n"
+              << "3. 主动与人交流（今天情商有增长）\n";
+    if (!CommandParser::readChoice(dailyGoal, 1, 3)) return;
+    goalStart = player.getStats().get(dailyGoal == 3 ? StatType::EQ : goalSubject);
+}
+
+void Action::finishDay(Player& player)
+{
+    const Stats& stats = player.getStats();
+    const bool achieved = dailyGoal == 1 ? stats.get(goalSubject) >= goalStart + 2 :
+        dailyGoal == 2 ? stats.get(StatType::Stamina) >= 50 && stats.get(StatType::Stress) <= 50 :
+        stats.get(StatType::EQ) > goalStart;
+    std::cout << (achieved ? "日记：今天的小目标完成了，平凡的一步也算数。\n" :
+        "日记：今天的目标还没完成，明天可以重新安排。\n");
+}
+
+void Action::executeMorningAction(Player& player)
+{
+    std::cout << "1. 英语晨读（英语 +1~3，压力 +2，体力 -2）\n"
+              << "2. 买份早餐（金钱 -10，体力 +8，健康 +2）\n"
+              << "3. 校园慢走（压力 -6，体力 -2）\n"
+              << "4. 梳理今日弱科（最弱科 +1，压力 -2）\n";
+    int choice = 0;
+    while (CommandParser::readChoice(choice, 1, 4))
+    {
+        if (choice == 2 && player.getMoney() < 10)
+        {
+            std::cout << "零钱不够，换个晨间安排吧。\n";
+            continue;
+        }
+        if (choice == 1)
+        {
+            const int gain = calculateStudyGain(player, StatType::English, 3);
+            modifyStat(player, StatType::English, gain);
+            modifyStat(player, StatType::Stress, 2);
+            modifyStat(player, StatType::Stamina, -2);
+            std::cout << "晨读声融进晨光。英语 +" << gain << "，压力 +2，体力 -2\n";
+        }
+        if (choice == 2)
+        {
+            player.changeMoney(-10);
+            modifyStat(player, StatType::Stamina, 8);
+            modifyStat(player, StatType::Health, 2);
+            std::cout << "豆浆还是热的。金钱 -10，体力 +8，健康 +2\n";
+        }
+        if (choice == 3)
+        {
+            modifyStat(player, StatType::Stress, -6);
+            modifyStat(player, StatType::Stamina, -2);
+            std::cout << "绕操场走了一圈，呼吸慢下来。压力 -6，体力 -2\n";
+        }
+        if (choice == 4)
+        {
+            modifyStat(player, goalSubject, 1);
+            modifyStat(player, StatType::Stress, -2);
+            std::cout << "把目标分成小步骤。" << to_string(goalSubject) << " +1，压力 -2\n";
+        }
+        return;
+    }
 }
 
 void Action::showActionResult(Player& player)

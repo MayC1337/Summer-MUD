@@ -6,6 +6,7 @@
 class Player;
 class TimeManager;
 class EventManager;
+struct GameProgress;
 
 class SaveManager
 {
@@ -26,6 +27,10 @@ public:
         EventManager &eventManager);
 
     bool hasSave() const;
+    bool saveGame(const Player& player, const TimeManager& timeManager,
+        const EventManager& eventManager, const GameProgress& progress);
+    bool loadGame(Player& player, TimeManager& timeManager,
+        EventManager& eventManager, GameProgress& progress);
 };
 
 #endif

@@ -17,4 +17,5 @@ public:
 
     // 根据结局id输出结局文本到控制台
     void showEnding(const std::string& endingId);
+    void showEnding(const std::string& endingId, const ExamResult& result);
 };

@@ -4,6 +4,8 @@
 #include <string>
 
 class Player;
+class CampusMap;
+struct GameProgress;
 
 enum class ActionTime
 {
@@ -17,12 +19,18 @@ class Action
 {
 private:
     ActionTime currentTime;
+    int currentDayOfWeek;
     bool exitRequested;
+    int dailyGoal = 1;
+    StatType goalSubject = StatType::Math;
+    int goalStart = 0;
+    CampusMap* world = nullptr;
 
 public:
     Action();
 
     void setTime(ActionTime time);
+    void setDayOfWeek(int dayOfWeek);
     ActionTime getTime() const;
     bool isExitRequested() const;
     void clearExitRequest();
@@ -33,9 +41,15 @@ public:
     void socialize(Player& player);
 
     void executeDailyAction(Player& player);
+    void beginDay(Player& player);
+    void finishDay(Player& player);
+    void setWorld(CampusMap* map);
+    void captureGoal(GameProgress& progress) const;
+    void restoreGoal(const GameProgress& progress);
 
 private:
     void executeClassAction(Player& player);
+    void executeMorningAction(Player& player);
     void executeNoonAction(Player& player);
     void executeEveningAction(Player& player);
 
@@ -60,6 +74,8 @@ private:
     void readNovel(Player& player);
 
     StatType chooseSubject();
+    StatType getScheduledSubject() const;
+    int calculateStudyGain(Player& player, StatType subject, int baseGain);
     double getStudyMultiplier(Player& player);
     void modifyStat(Player& player, StatType type, int delta);
 

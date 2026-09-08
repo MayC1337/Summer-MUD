@@ -9,7 +9,8 @@ public:
     int mathScore = 0;
     int englishScore = 0;
     int scienceScore = 0;
-    std::string feedback; // 录取大学反馈
+    std::string feedback;
+    std::string university; // 最终考试对应的模拟录取去向
 
     int getscore() const {
         return score;

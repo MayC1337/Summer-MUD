@@ -21,16 +21,16 @@ std::string Ending::judgeEnding(const Player& player, const ExamResult& result)
     const auto range = std::minmax_element(std::begin(subjects), std::end(subjects));
 
     if (health <= 15) return "health_collapse";
-    if (score >= 75 && (health <= 35 || stress >= 90)) return "ending_overdrawn";
-    if (score >= 90 && health >= 60 && stress <= 70) return "ending_perfect";
-    if (score >= 80 && eq < 45) return "ending_lonely_high_score";
-    if (*range.second >= 90 && *range.second - *range.first >= 30)
+    if (score >= 600 && (health <= 35 || stress >= 90)) return "ending_overdrawn";
+    if (score >= 680 && health >= 60 && stress <= 70) return "ending_perfect";
+    if (score >= 650 && eq < 45) return "ending_lonely_high_score";
+    if (score >= 500 && *range.second >= 90 && *range.second - *range.first >= 30)
         return "ending_specialist";
-    if (score >= 75 && health >= 60 && stress <= 60) return "ending_steady";
-    if (score >= 70 && intelligence >= 70) return "ending_comeback";
-    if (eq >= 75 && score >= 60) return "ending_youth";
-    if (score < 60 && stress <= 35) return "ending_free_spirit";
-    if (score >= 60) return "ending_normal";
+    if (score >= 600 && health >= 60 && stress <= 60) return "ending_steady";
+    if (score >= 570 && intelligence >= 70) return "ending_comeback";
+    if (eq >= 75 && score >= 540) return "ending_youth";
+    if (score < 450 && stress <= 35) return "ending_free_spirit";
+    if (score >= 450) return "ending_normal";
     return "ending_bad";
 }
 
@@ -48,7 +48,7 @@ std::string Ending::judgeEnding(
     if (eventManager.getEventChoice("teacher_talk") == 1 &&
         eventManager.getEventChoice("graduation_photo") == 3 &&
         eventManager.getEventChoice("final_night") == 1 &&
-        result.score >= 65)
+        result.score >= 540)
     {
         return "ending_future_self";
     }
@@ -145,5 +145,16 @@ void Ending::showEnding(const std::string& endingId)
     ConsoleUI::boxDivider();
     ConsoleUI::boxLine(firstLine);
     if (!secondLine.empty()) ConsoleUI::boxLine(secondLine);
+    ConsoleUI::boxBottom();
+}
+
+void Ending::showEnding(const std::string& endingId, const ExamResult& result)
+{
+    showEnding(endingId);
+    ConsoleUI::boxTop("模拟录取结果");
+    ConsoleUI::boxLine("去向：" + result.university);
+    ConsoleUI::boxDivider();
+    ConsoleUI::boxLine("本结果仅用于游戏体验，不代表真实录取线。");
+    ConsoleUI::boxLine("实际志愿须结合省份、年份、位次与专业。");
     ConsoleUI::boxBottom();
 }

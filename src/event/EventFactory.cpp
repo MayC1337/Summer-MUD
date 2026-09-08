@@ -1,4 +1,5 @@
 #include "EventFactory.h"
+#include "StoryData.h"
 
 #include <stdexcept>
 #include <vector>
@@ -6,6 +7,16 @@
 Event EventFactory::createEvent(
     const std::string &id)
 {
+    if (const auto* node = StoryData::find(id))
+    {
+        std::vector<std::string> choices;
+        for (const auto& choice : node->choices)
+            choices.push_back(std::string(choice.text) + "（" + to_string(choice.stat) +
+                (choice.delta >= 0 ? " +" : " ") + std::to_string(choice.delta) +
+                "，压力 " + (choice.stress >= 0 ? "+" : "") +
+                std::to_string(choice.stress) + "）");
+        return Event(id, node->title, node->description, choices);
+    }
     if (id == "night_study")
     {
         return Event(

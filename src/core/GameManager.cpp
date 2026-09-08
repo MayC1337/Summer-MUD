@@ -1,11 +1,15 @@
 #include "GameManager.h"
 #include "ConsoleUI.h"
+#include "../command/CommandParser.h"
 #include "../player/Player.h"
+#include "../player/Inventory.h"
 
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <set>
+#include <algorithm>
+#include <cctype>
 
 namespace
 {
@@ -18,11 +22,107 @@ const char *getGradeLabel(int rank)
 
 GameManager::GameManager()
     : running(false), player(nullptr), timeManager(TimeManager::DEFAULT_TOTAL_DAYS),
-      saveManager("save.txt"), lastWeeklyScore(-1)
+      saveManager("save.txt"), npcs(NPC::createCampusNPCs())
 {
 }
 
 GameManager::~GameManager() = default;
+
+bool GameManager::saveProgress()
+{
+    progress.location = world.currentRoom().id;
+    progress.pendingEvent = eventManager.getPendingEvent();
+    if (progress.stage == GameProgress::Stage::Action)
+        progress.pendingChoices = CommandParser::actionChoices();
+    if (!saveManager.saveGame(*player, timeManager, eventManager, progress))
+    {
+        ConsoleUI::message("保存失败：未替换旧存档。请检查目录权限或磁盘空间。", true);
+        return false;
+    }
+    return true;
+}
+
+void GameManager::showPeople() const
+{
+    std::cout << "这里的人物：";
+    bool present = false;
+    for (const auto& npc : npcs)
+        if (npc.isPresent(world.currentRoom().id, progress.period))
+        {
+            std::cout << npc.getName() << "(" << npc.getId() << ")  ";
+            present = true;
+        }
+    if (!present) std::cout << "暂时没有可交谈的人。";
+    std::cout << '\n';
+}
+
+bool GameManager::handleCommand(const std::string& command)
+{
+    std::istringstream parser(command);
+    std::string verb;
+    parser >> verb;
+    std::transform(verb.begin(), verb.end(), verb.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string argument;
+    std::getline(parser >> std::ws, argument);
+    if (verb == "help" || verb == "帮助")
+    {
+        ConsoleUI::boxTop("命令帮助 · 查看信息不耗行动");
+        ConsoleUI::boxLine("status/状态  inventory/背包  time/时间");
+        ConsoleUI::boxLine("map/地图  look/观察  who/人物");
+        ConsoleUI::boxLine("talk 林晓 / 交谈 林晓（也可使用英文人物ID）");
+        ConsoleUI::boxLine("save/存档  quit/退出（保存成功后退出）");
+        ConsoleUI::boxLine("晚间主菜单：north/south/east/west 或 北/南/东/西");
+        ConsoleUI::boxLine("到达后选择6进行当地活动；1~5可沿路线直达。");
+        ConsoleUI::boxBottom();
+    }
+    else if (verb == "status" || verb == "状态") player->showStatus();
+    else if (verb == "inventory" || verb == "背包") player->getInventory().showItems();
+    else if (verb == "time" || verb == "时间")
+    {
+        showDayHeader();
+        const char* periods[] = {"晨间", "午间", "下午", "晚间"};
+        std::cout << "当前时段：" << periods[progress.period] << "；地点：" << world.currentRoom().name << '\n';
+    }
+    else if (verb == "map" || verb == "地图") world.show();
+    else if (verb == "look" || verb == "观察") { world.look(); showPeople(); }
+    else if (verb == "who" || verb == "人物") showPeople();
+    else if (verb == "talk" || verb == "交谈")
+    {
+        for (const auto& npc : npcs)
+            if ((npc.getName() == argument || npc.getId() == argument) &&
+                npc.isPresent(world.currentRoom().id, progress.period))
+            {
+                const std::string key = npc.getId() + "@" + std::to_string(timeManager.getCurrentDay());
+                npc.talk(*player, eventManager, progress.npcConversations.insert(key).second);
+                return true;
+            }
+        std::cout << "这个人物当前不在这里。输入 who 查看人物及ID。\n";
+    }
+    else if (verb == "save" || verb == "存档" || verb == "quit" || verb == "退出")
+    {
+        if (!argument.empty()) { std::cout << "该命令不需要参数。\n"; return true; }
+        if (saveProgress())
+        {
+            ConsoleUI::message("进度已保存：日期、时段、地点和未完成阶段均已记录。");
+            if (verb == "quit" || verb == "退出") throw InputInterrupted(false);
+        }
+        else std::cout << "仍留在当前菜单，可以修复目录后重试或继续游玩。\n";
+    }
+    else
+    {
+        const std::map<std::string, std::string> directions = {
+            {"north", "north"}, {"south", "south"}, {"east", "east"}, {"west", "west"},
+            {"北", "north"}, {"南", "south"}, {"东", "east"}, {"西", "west"}};
+        const auto direction = directions.find(verb);
+        if (direction == directions.end()) return false;
+        if (!argument.empty()) { std::cout << "方向命令不需要参数。\n"; return true; }
+        if (progress.stage != GameProgress::Stage::Action || progress.period != 3 ||
+            !CommandParser::actionChoices().empty())
+            std::cout << "自由移动在晚间主菜单开放；当前请先完成正在进行的选择。\n";
+        else world.move(direction->second);
+    }
+    return true;
+}
 
 GameManager &GameManager::getInstance()
 {
@@ -32,6 +132,7 @@ GameManager &GameManager::getInstance()
 
 void GameManager::startGame()
 {
+    action.setWorld(&world);
     showWelcome();
     eventManager.loadEvents();
 
@@ -53,7 +154,9 @@ void GameManager::startGame()
         {
             createPlayer();
             timeManager.reset();
-            lastWeeklyScore = -1;
+            progress = GameProgress{};
+            world.setLocation(progress.location);
+            eventManager.setPendingEvent("");
             action.clearExitRequest();
             eventManager.setTriggeredEvents(std::set<std::string>());
             eventManager.setEventChoices(std::map<std::string, int>());
@@ -69,13 +172,16 @@ void GameManager::startGame()
             }
 
             player.reset(new Player("无名考生"));
-            if (!saveManager.loadGame(*player, timeManager, eventManager))
+            if (!saveManager.loadGame(*player, timeManager, eventManager, progress))
             {
                 player.reset();
                 std::cout << "存档损坏或版本不兼容，读取失败。\n";
                 continue;
             }
 
+            world.setLocation(progress.location);
+            action.restoreGoal(progress);
+            eventManager.setPendingEvent(progress.pendingEvent);
             playerName = player->getName();
             action.clearExitRequest();
             std::cout << "读档成功：" << playerName << "，已度过 "
@@ -92,49 +198,40 @@ void GameManager::startGame()
         std::cout << "无效选择，请重新输入。\n";
     }
 
+    CommandParser::setCommandHandler([this](const std::string& command) { return handleCommand(command); });
+    std::cout << "输入 help 查看命令；任意选择处可 save 存档、quit 保存退出。\n";
     running = true;
     run();
+    CommandParser::setCommandHandler({});
 }
 
 void GameManager::run()
 {
-    while (running && !timeManager.isFinished())
+    if (!timeManager.isFinished() && progress.stage != GameProgress::Stage::DayStart)
     {
         showDayHeader();
-        if (timeManager.getDayOfWeek() == 1)
+        std::cout << "恢复地点：" << world.currentRoom().name
+                  << "；从未完成的阶段继续。\n";
+    }
+    while (running && !timeManager.isFinished())
+    {
+        try
         {
-            showChapterIntro();
+            processCurrentDay();
+            if (running) saveProgress();
         }
-        showDailyNarration();
-        processCurrentDay();
-
-        if (player)
+        catch (const InputInterrupted& interruption)
         {
-            std::cout << "\n【今日结束状态】\n";
-            player->showStatus();
-        }
-
-        const bool weekFinished = timeManager.isEndOfWeek();
-        const int finishedWeek = timeManager.getCurrentWeek();
-        timeManager.advanceDay();
-
-        if (player && !saveManager.saveGame(*player, timeManager, eventManager))
-        {
-            std::cerr << "警告：自动存档失败。" << std::endl;
-        }
-
-        if (!running)
-        {
-            std::cout << "进度已保存，期待你下次继续。\n";
-            break;
-        }
-
-        if (weekFinished)
-        {
-            std::cout << "第 " << finishedWeek << " 周结束。" << std::endl;
+            if (interruption.endOfInput)
+            {
+                std::cout << "\n输入已结束，停止推进时间。\n";
+                saveProgress();
+            }
+            CommandParser::endActions();
+            action.clearExitRequest();
+            running = false;
         }
     }
-
     endGame();
 }
 
@@ -161,7 +258,29 @@ void GameManager::endGame()
 
     showGrowthReport(finalResult);
     const std::string endingId = ending.judgeEnding(*player, finalResult, eventManager);
-    ending.showEnding(endingId);
+    ending.showEnding(endingId, finalResult);
+    ConsoleUI::boxTop("六月 · 录取通知书");
+    ConsoleUI::boxLine("考生：" + playerName);
+    ConsoleUI::boxLine("高考成绩：" + std::to_string(finalResult.score) + " / 750");
+    ConsoleUI::boxLine("模拟去向：" + finalResult.university);
+    ConsoleUI::boxBottom();
+    eventManager.showMemories();
+    ConsoleUI::boxTop("下一站");
+    ConsoleUI::boxLine("           ( ^.^ )      __");
+    ConsoleUI::boxLine("           /|___|>     |[]|   -->");
+    ConsoleUI::boxLine("            /   \\      oo");
+    if (finalResult.university.find("中国海洋大学") != std::string::npos)
+    {
+        ConsoleUI::boxLine("    ~~~~~      ~~~~~      ~~~~~");
+        ConsoleUI::boxLine("海风翻开新书页，海鸥掠过青岛的天空。");
+        ConsoleUI::boxLine("下一次铃响，你将在中国海洋大学走进教室。");
+    }
+    else if (finalResult.score >= 450)
+        ConsoleUI::boxLine("拖着行李箱走进新校园，新的故事等你落笔。");
+    else ConsoleUI::boxLine("你重新打开地图，人生还有很多条可以出发的路。");
+    ConsoleUI::boxLine("铃声响过了，你的人生还在继续。");
+    ConsoleUI::boxBottom();
+    ConsoleUI::waitForExit("输入 0 结束这段高三旅程：");
 }
 
 void GameManager::showWelcome() const
@@ -270,48 +389,165 @@ void GameManager::showDailyNarration() const
 
 void GameManager::processCurrentDay()
 {
-    switch (timeManager.getCurrentDayType())
+    using Stage = GameProgress::Stage;
+    switch (progress.stage)
     {
-
-    case TimeManager::DayType::Study:
-        executeDailyAction();
-        if (action.isExitRequested())
+    case Stage::DayStart:
+        showDayHeader();
+        if (timeManager.getDayOfWeek() == 1) showChapterIntro();
+        showDailyNarration();
+        processWeeklyMilestone();
+        progress.stage = timeManager.getCurrentDayType() == TimeManager::DayType::Study ?
+            Stage::Goal : Stage::SpecialDay;
+        break;
+    case Stage::Goal:
+        action.beginDay(*player);
+        action.captureGoal(progress);
+        progress.stage = Stage::Routine;
+        break;
+    case Stage::Routine:
+    {
+        int repeat = 1;
+        if (!progress.previousActions[0].empty())
         {
-            running = false;
-            return;
+            std::cout << "1. 今天自己安排\n2. 沿用上个学习日的普通行动\n";
+            if (!CommandParser::readChoice(repeat, 1, 2)) return;
         }
-        triggerDailyEvent();
+        progress.repeat = repeat == 2;
+        progress.period = 0;
+        world.setLocation("gate");
+        progress.stage = Stage::Action;
         break;
-
-    case TimeManager::DayType::Exam:
-        calculateExam();
+    }
+    case Stage::Action:
+        executeDailyAction();
         break;
-
-    case TimeManager::DayType::Rest:
-        takeWeeklyRest();
+    case Stage::Story:
+        eventManager.triggerStory(*player, timeManager.getCurrentDay(), progress.period);
+        ++progress.period;
+        if (progress.period == 4)
+        {
+            progress.period = 3;
+            action.finishDay(*player);
+            progress.stage = Stage::DailyEvent;
+        }
+        else
+        {
+            const char* locations[] = {"gate", "canteen", "classroom", "gate"};
+            world.setLocation(locations[progress.period]);
+            progress.stage = Stage::Action;
+        }
+        break;
+    case Stage::SpecialDay:
+        if (timeManager.getCurrentDayType() == TimeManager::DayType::Exam)
+        {
+            world.setLocation("classroom");
+            calculateExam();
+            progress.stage = Stage::FinishDay;
+        }
+        else
+        {
+            world.setLocation("home");
+            takeWeeklyRest();
+            progress.stage = Stage::DailyEvent;
+        }
+        break;
+    case Stage::DailyEvent:
         triggerDailyEvent();
+        progress.stage = Stage::FinishDay;
+        break;
+    case Stage::FinishDay:
+        std::cout << "\n【今日结束状态】\n";
+        player->showStatus();
+        timeManager.advanceDay();
+        progress.stage = Stage::DayStart;
+        progress.period = 0;
+        progress.repeat = false;
+        progress.pendingChoices.clear();
+        world.setLocation("gate");
         break;
     }
 }
 
 void GameManager::executeDailyAction()
 {
-    if (!player)
+    action.setDayOfWeek(timeManager.getDayOfWeek());
+    action.restoreGoal(progress);
+    action.setTime(static_cast<ActionTime>(progress.period));
+    const auto index = static_cast<std::size_t>(progress.period);
+    const auto inputs = !progress.pendingChoices.empty() ? progress.pendingChoices :
+        progress.repeat ? progress.previousActions[index] : std::vector<int>{};
+    if (progress.period == 3 && progress.repeat && progress.pendingChoices.empty() &&
+        !inputs.empty() && inputs.front() == 6)
+        world.travelTo(progress.previousEveningLocation);
+    CommandParser::beginActions(inputs);
+    action.executeDailyAction(*player);
+    auto choices = CommandParser::endActions();
+    if (action.isExitRequested())
     {
+        action.clearExitRequest();
+        progress.pendingChoices.clear();
+        progress.repeat = false;
+        if (saveProgress())
+        {
+            ConsoleUI::message("进度已保存，下次从当前晚间继续。");
+            throw InputInterrupted(false);
+        }
+        std::cout << "退出已取消。仍在当前时段，可重试 save 或继续游戏。\n";
         return;
     }
+    progress.previousActions[index] = std::move(choices);
+    if (progress.period == 3) progress.previousEveningLocation = world.currentRoom().id;
+    progress.pendingChoices.clear();
+    progress.stage = GameProgress::Stage::Story;
+}
 
-    const ActionTime daySchedule[] = {
-        ActionTime::Morning,
-        ActionTime::Noon,
-        ActionTime::Afternoon,
-        ActionTime::Evening};
-
-    for (ActionTime actionTime : daySchedule)
+void GameManager::processWeeklyMilestone()
+{
+    const int day = timeManager.getCurrentDay();
+    const char* titles[] = {"写下心愿", "班级小组挑战", "全校模拟考动员", "毕业照与留言册", "整理最后一张书桌"};
+    const char* descriptions[] = {
+        "你在日记第一页留出一行，准备写下六月的目标。",
+        "老师把复习题分给小组，每个人都可以贡献一点力量。",
+        "模考检验准备，也考验如何面对暂时的失利。",
+        "同学们互借笔写留言，窗外的梧桐已经长得很密。",
+        "抽屉里有旧试卷、糖纸和朋友递来的便签。"};
+    if ((day - 1) % 7 != 0) return;
+    const int week = (day - 1) / 7;
+    const std::string id = "milestone_" + std::to_string(week + 1);
+    if (eventManager.hasTriggered(id)) return;
+    ConsoleUI::boxTop(titles[week]);
+    ConsoleUI::boxLine(descriptions[week]);
+    ConsoleUI::boxBottom();
+    if (week == 0)
+        std::cout << "1. 向海出发：中国海洋大学（目标615分）\n2. 冲刺更高的山峰（目标680分）\n3. 稳住自己的节奏（目标540分）\n";
+    else if (week == 1)
+        std::cout << "1. 负责讲解（智力 +1，压力 +2）\n2. 协调合作（情商 +2，压力 -2）\n3. 独立整理资料（理综 +2，体力 -3）\n";
+    else if (week == 2)
+        std::cout << "1. 梳理易错点（智力 +1）\n2. 调整作息（体力 +4）\n3. 和同桌互相鼓励（压力 -4）\n";
+    else if (week == 3)
+        std::cout << "1. 写下感谢（情商 +2）\n2. 给未来留一句话（压力 -3）\n3. 收好全班合照（压力 -2）\n";
+    else std::cout << "1. 收藏旧便签（压力 -3）\n2. 把笔记送给学弟妹（情商 +2）\n3. 整理文具，早点睡（体力 +4）\n";
+    int choice = 0;
+    if (!CommandParser::readChoice(choice, 1, 3)) return;
+    if (week == 1)
     {
-        action.setTime(actionTime);
-        action.executeDailyAction(*player);
+        player->modifyStat(choice == 1 ? StatType::Intelligence : choice == 2 ? StatType::EQ : StatType::Science, choice == 1 ? 1 : 2);
+        player->modifyStat(choice == 3 ? StatType::Stamina : StatType::Stress, choice == 1 ? 2 : choice == 2 ? -2 : -3);
+        if (eventManager.getEventChoice("desk_2") == 1 && choice != 3)
+        {
+            player->modifyStat(StatType::Science, 1);
+            std::cout << "林晓接过你的讲解，你们上次合作的默契派上用场。理综 +1。\n";
+        }
     }
+    if (week == 2) player->modifyStat(choice == 1 ? StatType::Intelligence : choice == 2 ? StatType::Stamina : StatType::Stress, choice == 1 ? 1 : choice == 2 ? 4 : -4);
+    if (week == 3) player->modifyStat(choice == 1 ? StatType::EQ : StatType::Stress, choice == 1 ? 2 : choice == 2 ? -3 : -2);
+    if (week == 4) player->modifyStat(choice == 1 ? StatType::Stress : choice == 2 ? StatType::EQ : StatType::Stamina, choice == 1 ? -3 : choice == 2 ? 2 : 4);
+    eventManager.markTriggered(id);
+    auto choices = eventManager.getEventChoices();
+    choices[id] = choice;
+    eventManager.setEventChoices(choices);
+    std::cout << "这一页已经写进了你的六月记忆。\n";
 }
 
 void GameManager::calculateExam()
@@ -324,14 +560,21 @@ void GameManager::calculateExam()
     const ExamResult result = exam.takeWeeklyExam(*player);
     std::cout << "\n========== 第 " << timeManager.getCurrentWeek()
               << " 周周考 ==========\n";
+    const char* examNarrations[] = {
+        "第一次周考：先看清自己的起点，不急着否定自己。",
+        "小组挑战之后，今天试着独立运用学到的方法。",
+        "全校模拟考：座位重新编排，请把这次当作正式预演。",
+        "最后阶段的诊断：优先找出还能修补的失分点。",
+        "考前适应练习：不再追求题量，带着熟悉的节奏进考场。"};
+    std::cout << examNarrations[timeManager.getCurrentWeek() - 1] << '\n';
     showExamDetails(result);
-    if (lastWeeklyScore >= 0)
+    if (progress.lastWeeklyScore >= 0)
     {
-        const int change = result.score - lastWeeklyScore;
+        const int change = result.score - progress.lastWeeklyScore;
         std::cout << "与上周相比：" << (change >= 0 ? "+" : "")
                   << change << " 分\n";
     }
-    lastWeeklyScore = result.score;
+    progress.lastWeeklyScore = result.score;
 
     player->modifyStat(StatType::Stress, 5);
     player->modifyStat(StatType::Intelligence, 1);
@@ -363,16 +606,18 @@ void GameManager::triggerDailyEvent()
 
 void GameManager::showExamDetails(const ExamResult &result) const
 {
-    std::ostringstream subjects;
-    subjects << "语文 " << result.chineseScore
-             << "    数学 " << result.mathScore
-             << "    英语 " << result.englishScore
-             << "    理综 " << result.scienceScore;
+    std::ostringstream languages;
+    languages << "语文 " << result.chineseScore << "/150"
+              << "    数学 " << result.mathScore << "/150";
+    std::ostringstream comprehensive;
+    comprehensive << "英语 " << result.englishScore << "/150"
+                  << "    理综 " << result.scienceScore << "/300";
     std::ostringstream total;
-    total << "总分 " << result.score << "/100    等级 "
+    total << "总分 " << result.score << "/750    等级 "
           << getGradeLabel(result.rank);
     ConsoleUI::boxTop("考试成绩");
-    ConsoleUI::boxLine(subjects.str());
+    ConsoleUI::boxLine(languages.str());
+    ConsoleUI::boxLine(comprehensive.str());
     ConsoleUI::boxLine(total.str());
     ConsoleUI::boxDivider();
     ConsoleUI::boxLine(result.feedback);
@@ -392,7 +637,7 @@ void GameManager::showGrowthReport(const ExamResult &result) const
     }
 
     std::ostringstream scoreLine;
-    scoreLine << "高考成绩：" << result.score << "/100";
+    scoreLine << "高考成绩：" << result.score << "/750";
     std::ostringstream subjectLine;
     subjectLine << "最强科目：" << to_string(strongest) << " "
                 << stats.get(strongest);
@@ -400,13 +645,19 @@ void GameManager::showGrowthReport(const ExamResult &result) const
     stateLine << "最终健康：" << stats.get(StatType::Health)
               << "    最终压力：" << stats.get(StatType::Stress);
     std::ostringstream eventLine;
-    eventLine << "经历事件：" << eventManager.getTriggeredEvents().size()
-              << " / 15";
+    eventLine << "经历故事与事件：" << eventManager.getTriggeredEvents().size();
     std::cout << '\n';
     ConsoleUI::boxTop("35天成长报告");
     ConsoleUI::boxLine(scoreLine.str());
     ConsoleUI::boxLine(subjectLine.str());
     ConsoleUI::boxLine(stateLine.str());
     ConsoleUI::boxLine(eventLine.str());
+    const int goal = eventManager.getEventChoice("milestone_1");
+    if (goal != 0)
+    {
+        const int target = goal == 1 ? 615 : goal == 2 ? 680 : 540;
+        ConsoleUI::boxLine("月初心愿分数：" + std::to_string(target) +
+            (result.score >= target ? "  已达到" : "  尚有距离，也有下一段路"));
+    }
     ConsoleUI::boxBottom();
 }

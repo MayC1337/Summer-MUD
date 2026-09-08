@@ -17,6 +17,7 @@ private:
 
     std::set<std::string> triggeredEvents;
     std::map<std::string, int> eventChoices;
+    std::string pendingEvent;
 
 public:
     void loadEvents();
@@ -24,6 +25,10 @@ public:
     void triggerEvent(
         Player &player);
     void triggerEvent(Player &player, int currentDay);
+    void triggerStory(Player &player, int currentDay, int period);
+    void showMemories() const;
+    const std::string& getPendingEvent() const;
+    void setPendingEvent(const std::string& id);
 
     bool hasTriggered(
         const std::string &eventId) const;

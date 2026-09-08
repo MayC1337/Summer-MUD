@@ -1,4 +1,5 @@
 #include "ConsoleUI.h"
+#include "TitleArt.h"
 
 #include <algorithm>
 #include <chrono>
@@ -133,45 +134,114 @@ void ConsoleUI::typeLine(const std::string &text, int delayMilliseconds)
 void ConsoleUI::showSplash()
 {
     clearScreen();
-    const char *const logo[] = {
-        "  ███████╗██╗   ██╗███╗   ███╗███╗   ███╗███████╗██████╗ ",
-        "  ██╔════╝██║   ██║████╗ ████║████╗ ████║██╔════╝██╔══██╗",
-        "  ███████╗██║   ██║██╔████╔██║██╔████╔██║█████╗  ██████╔╝",
-        "  ╚════██║██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══╝  ██╔══██╗",
-        "  ███████║╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║███████╗██║  ██║",
-        "  ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝",
-        "                         M  U  D                         "};
-
-    for (const char *line : logo)
+    int terminalWidth = 80;
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
+        terminalWidth = info.srWindow.Right - info.srWindow.Left + 1;
+#endif
+    // 宽窗口显示双列笔画，窄窗口自动缩小，避免长行折断标题。
+    const int scale = terminalWidth >= 112 ? 2 : 1;
+    const int titleWidth = TitleArt::SIZE * 4 * scale + 6;
+    const auto centered = [titleWidth](const std::string& text)
     {
-        typeLine(line, 1);
-        if (isInteractive())
-            std::this_thread::sleep_for(std::chrono::milliseconds(45));
-    }
-
+        return std::string(static_cast<std::size_t>(
+            std::max(0, (titleWidth - displayWidth(text)) / 2)), ' ') + text;
+    };
     std::cout << '\n';
-    typeLine("              中国式高三生活模拟", 18);
-    typeLine("        你还有 35 天，写下自己的答案。", 18);
-
-    if (isInteractive())
+    if (terminalWidth >= titleWidth + 1)
     {
-        std::cout << "\n  正在翻开日历 ";
-        for (int i = 0; i < 12; ++i)
+        for (int y = 0; y < TitleArt::SIZE; ++y)
         {
-            std::cout << "■" << std::flush;
-            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+            std::string row;
+            for (int letter = 0; letter < 4; ++letter)
+            {
+                if (letter != 0) row += "  ";
+                for (int x = 0; x < TitleArt::SIZE; ++x)
+                    for (int repeat = 0; repeat < scale; ++repeat)
+                        row += TitleArt::GLYPHS[letter][y][x] == '#' ? "█" : " ";
+            }
+            std::cout << row << '\n' << std::flush;
+            if (isInteractive())
+                std::this_thread::sleep_for(std::chrono::milliseconds(45));
         }
-        std::cout << "\n\n";
     }
     else
     {
-        std::cout << '\n';
+        std::cout << "  铃  响  之  前\n";
+    }
+    std::cout << '\n';
+    typeLine(centered("铃  响  之  前"), 30);
+    typeLine(centered("—— 高考倒计时 35 天 ——"), 18);
+    std::cout << '\n';
+    typeLine(centered("你还有 35 天，写下自己的答案。"), 20);
+    if (isInteractive())
+    {
+        std::cout << centered("正在翻开日历  [") << std::flush;
+        for (int i = 0; i < 12; ++i)
+        {
+            std::cout << "=" << std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(35));
+        }
+        std::cout << "]\n";
+    }
+    std::cout << '\n';
+}
+
+void ConsoleUI::showPeriod(int period, int stamina, int stress)
+{
+    const char* titles[] = {"晨间 · 校门与晨光", "午间 · 饭盒与树荫",
+        "下午 · 黑板与试卷", "夜晚 · 台灯与月亮"};
+    const char* scenery[] = {"    \\ | /          .---- 校门 ----.",
+        "       /\\_/\\          .-------.", "   .------- 今日课程 -------.",
+        "       *       )        .---.    *"};
+    const char* details[] = {"  -- ( ) --        |              |",
+        "      ( o.o )         | 饭盒  |", "   |   阅读 / 思考 / 提问    |",
+        "                       /___/   台灯"};
+    const int index = std::clamp(period, 0, 3);
+    const char* transitions[] = {"晨光亮起，校门前响起脚步声。", "午饭铃响，饭香从走廊飘来。",
+        "翻开试卷，窗外树影轻轻摇晃。", "台灯亮起，月光落在窗台上。"};
+    typeLine(transitions[index], 8);
+    boxTop(titles[index]);
+    boxLine(scenery[index]);
+    boxLine(details[index]);
+    boxLine(stamina <= 20 ? "          ( -.- ) z Z" : stress >= 70 ?
+        "          ( >_< ) ;" : "          ( ^.^ )");
+    boxLine(index == 0 ? "         /| []|>       背上书包，今天也出发吧。" :
+        index == 1 ? "         /|___|\\       午间留一点时间给自己。" :
+        index == 2 ? "       ___/___/___     把问题一步一步解开。" :
+        "       ___/___/___     世界安静下来，选择属于你。");
+    boxBottom();
+}
+
+void ConsoleUI::waitForExit(const std::string &message)
+{
+    if (!isInteractive()) return;
+
+    std::cin.clear();
+    std::string line;
+    while (true)
+    {
+        std::cout << "\n" << message << std::flush;
+        if (!std::getline(std::cin, line) || line == "0")
+            return;
+        std::cout << "请输入数字 0 后再退出。\n";
     }
 }
 
 void ConsoleUI::boxTop(const std::string &title, int width)
 {
+    if (isInteractive()) std::cout << "\x1b[36m";
     printRule("╔", "╗", title, width);
+    if (isInteractive()) std::cout << "\x1b[0m";
+}
+
+void ConsoleUI::message(const std::string& text, bool error)
+{
+    if (isInteractive()) std::cout << (error ? "\x1b[33m" : "\x1b[32m");
+    std::cout << text;
+    if (isInteractive()) std::cout << "\x1b[0m";
+    std::cout << '\n';
 }
 
 void ConsoleUI::boxDivider(const std::string &title, int width)
