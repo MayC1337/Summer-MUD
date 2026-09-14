@@ -22,6 +22,7 @@ bool isAvailableOnDay(const std::string &id, int day)
 
 void EventManager::triggerStory(Player& player, int currentDay, int period)
 {
+    // 剧情节点按日/时段精确匹配，且前置节点的选择会影响文案分支。
     for (const auto& node : StoryData::nodes())
     {
         if (node.day > currentDay || node.period != period || hasTriggered(node.id)) continue;
@@ -113,6 +114,7 @@ void EventManager::triggerEvent(
 
 void EventManager::triggerEvent(Player &player, int currentDay)
 {
+    // 从未触发且满足条件的事件中选择当天可用事件；pendingEvent 支持读档续选。
     std::vector<Event *> candidates;
     for (Event &event : events)
     {

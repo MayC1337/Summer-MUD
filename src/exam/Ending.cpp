@@ -39,6 +39,7 @@ std::string Ending::judgeEnding(
     const ExamResult& result,
     const EventManager& eventManager)
 {
+    // 结局先处理带剧情条件的特殊分支，再按考试与属性评估通用结局。
     const std::string baseEnding = judgeEnding(player, result);
     if (baseEnding == "health_collapse" || baseEnding == "ending_overdrawn")
     {

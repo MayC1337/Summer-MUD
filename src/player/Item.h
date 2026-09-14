@@ -9,6 +9,7 @@
 
 class Player;
 
+// 可购买或使用的道具；effects_ 描述其对属性的通用影响。
 class Item
 {
 public:

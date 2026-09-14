@@ -6,6 +6,7 @@
 
 int main()
 {
+    // 程序入口仅启动总调度器，具体循环和退出处理由 GameManager 负责。
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);

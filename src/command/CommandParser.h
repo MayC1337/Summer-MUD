@@ -5,12 +5,14 @@
 #include <functional>
 #include <stdexcept>
 
+// 以异常把 EOF/退出从任意嵌套菜单传回主游戏循环。
 struct InputInterrupted : std::runtime_error
 {
     bool endOfInput;
     explicit InputInterrupted(bool eof) : std::runtime_error("Input interrupted"), endOfInput(eof) {}
 };
 
+// 集中处理菜单输入，并记录可重放的行动选择以支持“沿用昨日安排”。
 class CommandParser
 {
 public:

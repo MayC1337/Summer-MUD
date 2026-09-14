@@ -7,6 +7,7 @@
 
 class Inventory;
 
+// 聚合玩家姓名、金钱、属性和背包，并作为玩法模块的唯一玩家入口。
 class Player
 {
 public:
@@ -31,7 +32,7 @@ public:
 
 private:
     std::string name_;
-    std::unique_ptr<Stats> stats_;
+    std::unique_ptr<Stats> stats_; // 允许读档时替换整组属性。
     int money_;
     std::unique_ptr<Inventory> inventory_;
 };

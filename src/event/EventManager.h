@@ -10,6 +10,7 @@
 
 class Player;
 
+// 维护事件库、已触发记录与玩家选择，并在指定节点驱动事件。
 class EventManager
 {
 private:
@@ -17,7 +18,7 @@ private:
 
     std::set<std::string> triggeredEvents;
     std::map<std::string, int> eventChoices;
-    std::string pendingEvent;
+    std::string pendingEvent; // 存档时尚未完成选择的事件 ID；空串表示无待处理事件。
 
 public:
     void loadEvents();

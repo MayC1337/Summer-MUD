@@ -48,6 +48,7 @@ void printRule(
 
 int ConsoleUI::displayWidth(const std::string &text)
 {
+    // 控制台边框按显示列宽而非字节数排版，兼容 UTF-8 中文字符。
     int width = 0;
     for (std::size_t i = 0; i < text.size();)
     {

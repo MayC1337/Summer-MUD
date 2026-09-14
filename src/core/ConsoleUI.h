@@ -2,6 +2,7 @@
 
 #include <string>
 
+// 控制台展示工具：负责中文显示宽度、边框和交互体验，不保存游戏状态。
 namespace ConsoleUI
 {
 constexpr int BOX_WIDTH = 58;

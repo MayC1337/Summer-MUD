@@ -6,6 +6,7 @@
 
 namespace
 {
+// 此状态只属于当前一次行动序列；beginActions/endActions 负责其边界。
 bool recording = false;
 std::vector<int> recorded;
 std::vector<int> replayed;
@@ -49,6 +50,7 @@ bool CommandParser::readChoice(
     int maximum,
     const std::string &prompt)
 {
+    // 优先消耗重放队列；用户输入则既校验范围又记录，以便保存到下一学习日。
     while (true)
     {
         if (recording && replayIndex < replayed.size())

@@ -3,6 +3,7 @@
 
 #include <string>
 
+// 所有可被行动、事件和考试读取或修改的玩家属性。
 enum class StatType
 {
     Intelligence,
@@ -18,6 +19,7 @@ enum class StatType
 
 std::string to_string(StatType type);
 
+// 属性容器；所有写入通过 modify/set 统一执行取值范围约束。
 class Stats
 {
 public:

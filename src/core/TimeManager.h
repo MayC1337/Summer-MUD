@@ -1,6 +1,7 @@
 #ifndef TIMEMANAGER_H
 #define TIMEMANAGER_H
 
+// 将 35 天倒计时映射为周次、星期与日程类型的纯时间状态机。
 class TimeManager
 {
 public:
@@ -34,7 +35,7 @@ public:
 
 private:
     int totalDays;
-    int elapsedDays;
+    int elapsedDays; // 已完整结束的天数；当前日期为 elapsedDays + 1。
 };
 
 #endif

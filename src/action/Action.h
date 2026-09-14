@@ -14,13 +14,14 @@ enum class ActionTime
     Evening
 };
 
+// 管理一个时段内的玩家选择，并把选择转换为属性、道具与地图变化。
 class Action
 {
 private:
-    ActionTime currentTime;
+    ActionTime currentTime;       // 由 GameManager 在进入时段前设置。
     int currentDayOfWeek;
-    bool exitRequested;
-    CampusMap* world = nullptr;
+    bool exitRequested;           // 晚间菜单选择退出时置位，供调度器保存并中止当天流程。
+    CampusMap* world = nullptr;   // 非拥有指针；地图由 GameManager 生命周期管理。
 
 public:
     Action();

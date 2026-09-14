@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 
+// 地图节点；exits 将方向词映射到相邻地点 ID。
 struct Room
 {
     std::string id;
