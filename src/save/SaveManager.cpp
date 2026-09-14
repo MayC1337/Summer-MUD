@@ -125,6 +125,7 @@ bool SaveManager::saveGame(const Player& player, const TimeManager& timeManager,
     const auto destination = std::filesystem::u8path(saveFile);
     auto temporary = destination;
     temporary += ".tmp." + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    // 先写临时文件，全部成功后再替换旧存档，避免断电留下半份 save.txt。
     struct TemporaryFile
     {
         std::filesystem::path path;
@@ -219,6 +220,7 @@ bool SaveManager::loadGame(Player& player, TimeManager& timeManager,
         return false;
     }
 
+    // 先读进临时变量并完整检查，坏存档不会把当前游戏改到一半。
     std::string version;
     std::string name;
     int money = 0;
@@ -384,6 +386,7 @@ bool SaveManager::loadGame(Player& player, TimeManager& timeManager,
         }
     }
 
+    // 到这里文件结构已经确认无误，再一次性恢复各模块的状态。
     try
     {
         player.setName(name);

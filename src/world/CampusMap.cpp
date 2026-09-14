@@ -55,6 +55,7 @@ std::vector<std::string> CampusMap::routeTo(const std::string& destination) cons
 {
     // 广度优先搜索最少步路线，供 travelTo 逐段复用普通移动规则。
     if (!rooms.count(destination)) return {};
+    // 地图边的代价都一样，用广度优先搜索就能找到步数最少的路线。
     std::queue<std::string> pending;
     std::map<std::string, std::string> previous;
     pending.push(current);
@@ -72,6 +73,7 @@ std::vector<std::string> CampusMap::routeTo(const std::string& destination) cons
             }
     }
     if (!previous.count(destination)) return {};
+    // previous 既用来判重，也保留父节点，最后从终点倒着拼回路线。
     std::vector<std::string> route;
     for (std::string id = destination; !id.empty(); id = previous.at(id)) route.push_back(id);
     std::reverse(route.begin(), route.end());

@@ -258,6 +258,7 @@ void GameManager::run()
         std::cout << "恢复地点：" << world.currentRoom().name
                   << "；从未完成的阶段继续。\n";
     }
+    // 一次循环只推进一个阶段。这样在子菜单里保存时，读档能回到准确的位置。
     while (running && !timeManager.isFinished())
     {
         try
@@ -435,7 +436,7 @@ void GameManager::showDailyNarration() const
 void GameManager::processCurrentDay()
 {
     using Stage = GameProgress::Stage;
-    // 该状态机可从存档中间恢复：每次调用只推进一个确定阶段，避免重复结算。
+    // 每次只推进一个阶段，只有 FinishDay 真正换天，读档也不会重复结算。
     switch (progress.stage)
     {
     case Stage::DayStart:
@@ -523,6 +524,7 @@ void GameManager::executeDailyAction()
     action.setDayOfWeek(timeManager.getDayOfWeek());
     action.setTime(static_cast<ActionTime>(progress.period));
     const auto index = static_cast<std::size_t>(progress.period);
+    // 中途退出留下的选择要先接着用，否则“沿用安排”会把整段菜单从头再跑一遍。
     const auto inputs = !progress.pendingChoices.empty() ? progress.pendingChoices :
         progress.repeat ? progress.previousActions[index] : std::vector<int>{};
     if (progress.period == 3 && progress.repeat && progress.pendingChoices.empty() &&

@@ -51,6 +51,7 @@ Stats::Stats(int intelligence, int eq, int stamina, int health, int stress,
 
 int Stats::clamp(int value) const
 {
+    // 所有属性都从这里收口，调用方不用各自处理越界。
     if (value < 0) return 0;
     if (value > 100) return 100;
     return value;

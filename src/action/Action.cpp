@@ -83,6 +83,7 @@ double Action::getStudyMultiplier(Player& player)
     int stress = stats.get(StatType::Stress);
     int health = stats.get(StatType::Health);
 
+    // 压力、健康和体力共同限制效率，硬撑并不一定比休息赚得多。
     double multiplier = 1.0;
 
     if (stress >= 90)
@@ -111,6 +112,7 @@ int Action::calculateStudyGain(Player& player, StatType subject, int baseGain)
 {
     // 学科越接近上限，收益越低；乘数同时反映智力和体力/压力状态。
     const int ability = player.getStats().get(subject);
+    // 能力越接近上限，继续提升越慢，避免几天内把属性轻松刷满。
     int adjustedBase = baseGain;
     if (ability >= 90)
         adjustedBase = 1;

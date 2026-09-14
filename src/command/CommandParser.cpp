@@ -6,7 +6,7 @@
 
 namespace
 {
-// 此状态只属于当前一次行动序列；beginActions/endActions 负责其边界。
+// 这些变量只在一次行动菜单中使用，用来记录或重放玩家的数字选择。
 bool recording = false;
 std::vector<int> recorded;
 std::vector<int> replayed;
@@ -62,6 +62,7 @@ bool CommandParser::readChoice(
                 recorded.push_back(choice);
                 return true;
             }
+            // 菜单内容变了时，旧选择可能已经无效，剩下的改由玩家手动输入。
             replayed.clear();
         }
         std::cout << prompt;
@@ -69,6 +70,7 @@ bool CommandParser::readChoice(
         std::string line;
         if (!std::getline(std::cin, line))
         {
+            // 游戏中途断开输入时交给 GameManager 统一保存和收尾。
             if (commandHandler) throw InputInterrupted(true);
             return false;
         }

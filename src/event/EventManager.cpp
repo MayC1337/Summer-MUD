@@ -22,7 +22,7 @@ bool isAvailableOnDay(const std::string &id, int day)
 
 void EventManager::triggerStory(Player& player, int currentDay, int period)
 {
-    // 剧情节点按日/时段精确匹配，且前置节点的选择会影响文案分支。
+    // 剧情按日期和前置节点推进，同一时段只放一段，前面的选择也会影响文案。
     for (const auto& node : StoryData::nodes())
     {
         if (node.day > currentDay || node.period != period || hasTriggered(node.id)) continue;
@@ -143,6 +143,7 @@ void EventManager::triggerEvent(Player &player, int currentDay)
         std::uniform_int_distribution<std::size_t> select(0, candidates.size() - 1);
         pendingEvent = candidates[select(generator)]->getId();
     }
+    // 先记住抽中的事件。玩家在选择前退出，读档后仍会遇到同一件事。
     Event event = EventFactory::createEvent(pendingEvent);
     event.show();
 

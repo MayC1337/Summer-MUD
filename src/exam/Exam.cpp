@@ -15,7 +15,7 @@ int calculateSubjectScore(
     int maximumScore,
     int randomBonus)
 {
-    // 将能力值映射到单科分数；四科结构合计为 750 分。
+    // 学科基础占主要部分，身心状态只修正临场发挥，不会盖过平时积累。
     const int percentage = std::clamp(static_cast<int>(std::lround(
         stats.get(subject) * 0.77 +
         stats.get(StatType::Intelligence) * 0.12 +
@@ -64,6 +64,7 @@ ExamResult Exam::takeWeeklyExam(Player& player1) {
     std::random_device rd;
     std::mt19937 gen(rd());
     Stats& stats = player1.getStats();
+    // 周测留一点正常波动；理解力越高，成绩越稳定。
     const int fluctuation = stats.get(StatType::Intelligence) >= 80 ? 2 :
         stats.get(StatType::Intelligence) >= 60 ? 3 : 5;
     std::uniform_int_distribution<> dist(-fluctuation, fluctuation);
@@ -82,7 +83,7 @@ ExamResult Exam::takeWeeklyExam(Player& player1) {
 }
 
 ExamResult Exam::takeFinalExam(Player& player1) {
-    // 最终考试沿用周测计算，但额外填充模拟录取去向。
+    // 高考不再掷随机数，保证同一份最终状态得到同一个结局。
     const int num = 0;
 
     Stats& stats = player1.getStats();

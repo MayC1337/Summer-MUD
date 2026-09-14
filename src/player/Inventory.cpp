@@ -11,6 +11,7 @@ void Inventory::addItem(std::unique_ptr<Item> item)
     {
         return;
     }
+    // 背包接管物品所有权，物品会随背包自动释放。
     items_.push_back(std::move(item));
 }
 
