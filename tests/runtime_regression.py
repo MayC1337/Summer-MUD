@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix="before-bell-runtime-") as root:
     assert "最终结局" not in out
 
     # 第一天晚间移动到图书馆，交谈后在学习方法子菜单保存退出。
-    out = run(folder, ["1", "场景测试", "1", "1", "1abc", "1.5", "1", "1", "1", "1",
+    out = run(folder, ["1", "场景测试", "1", "1abc", "1.5", "1", "1", "1", "1",
                        "map", "north", "east", "who", "talk linxiao", "talk linxiao",
                        "6", "1", "2", "save", "quit"])
     rows, _, stage, index = snapshot(folder)
@@ -50,6 +50,9 @@ with tempfile.TemporaryDirectory(prefix="before-bell-runtime-") as root:
     assert '"library"' in rows[index + 1]
     assert rows[index + 6] == "3 6 1 2"
     assert "今天已经聊过了" in out and "林晓" in out
+    assert "今天的小目标" not in out and "日记：今天的目标" not in out
+    assert "当前位置：校门" in out and "例如：交谈 门卫" in out
+    assert "图书馆：林晓、管理员" in out and "例如：交谈 林晓" in out
     stats = list(map(int, rows[3].split()))
     assert stats[6] == 45  # 数学练习尚未结算
     out = run(folder, ["2", "time", "who", "talk linxiao", "1"])
@@ -75,7 +78,7 @@ with tempfile.TemporaryDirectory(prefix="before-bell-runtime-") as root:
     assert "图书馆" in out and "沿用安排" in out
 
     # 晚间数字0退出不跳天，也不会在读档时再次自动退出。
-    out = run(folder, ["1", "退出测试", "1", "1", "1", "1", "1", "1", "0"])
+    out = run(folder, ["1", "退出测试", "1", "1", "1", "1", "1", "0"])
     rows, _, stage, index = snapshot(folder)
     assert rows[4] == "0" and stage[:2] == [3, 3]
     assert rows[index + 6] == "0"
@@ -95,11 +98,43 @@ with tempfile.TemporaryDirectory(prefix="before-bell-runtime-") as root:
     assert rows[4] == "1" and "rainy_day" in events
     assert list(map(int, rows[3].split()))[3] == before[3] - 5
 
+    # 旧存档停在目标页也直接进入行动；晨间弱科仍按实际属性选择。
+    rows[4] = "1"
+    stage[:2] = [1, 0]
+    rows[index] = " ".join(map(str, stage))
+    rows[index + 2] = "0"
+    stats = [40, 40, 80, 80, 10, 45, 45, 45, 20]
+    rows[3] = " ".join(map(str, stats))
+    (folder / "save.txt").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    out = run(folder, ["2", "4"])
+    rows, _, stage, index = snapshot(folder)
+    assert "今天的小目标" not in out and "理综 +1" in out
+    assert list(map(int, rows[3].split()))[8] == 21
+
+    # 周测确认前断流已保存结算结果；重启不会重复考试或重复改变属性。
+    rows[4] = "5"
+    stage[:2] = [5, 0]
+    rows[index] = " ".join(map(str, stage))
+    (folder / "save.txt").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    out = run(folder, ["2"])
+    rows, _, stage, _ = snapshot(folder)
+    assert stage[0] == 7 and rows[4] == "5"
+    assert "总分" in out and "下周建议" in out and "输入1继续" in out
+    settled_stats = rows[3]
+    out = run(folder, ["2", "quit"])
+    rows, _, _, _ = snapshot(folder)
+    assert "周周考" not in out
+    # 下一天可能自动休息，但周考的智力奖励不能再次发放。
+    assert rows[3].split()[0] == settled_stats.split()[0]
+
     # 一条完整35天路线，所有连续故事与周考仍在。
     out = run(folder, ["1", "完整通关"] + ["1"] * 2000)
     rows, events, stage, _ = snapshot(folder)
     assert rows[4] == "35" and stage[0] == 0
     assert out.count("周周考") == 5
+    assert out.count("下周建议") == 5
+    assert out.count("与上周相比") == 4
+    assert "今天的小目标" not in out and "目标完成了" not in out
     for prefix in ("desk", "teacher", "family", "cat"):
         for step in range(1, 5):
             assert f"{prefix}_{step}" in events

@@ -13,6 +13,10 @@ add_executable(Summer-MUD ${SUMMER_MUD_SOURCES})
 set_target_properties(Summer-MUD PROPERTIES OUTPUT_NAME "铃响之前")
 if(MSVC)
     target_compile_options(Summer-MUD PRIVATE /utf-8)
+    set_property(TARGET Summer-MUD PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+elseif(MINGW)
+    # 分发程序自带C++和线程运行库，避免其他电脑缺DLL或加载旧版DLL。
+    target_link_options(Summer-MUD PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 include(CTest)

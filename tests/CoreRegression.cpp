@@ -42,6 +42,8 @@ int main()
     std::cin.clear();
 
     CampusMap map;
+    int arrivals = 0;
+    map.setArrivalHandler([&arrivals]() { ++arrivals; });
     assert(map.getRooms().size() == 9);
     for (const auto& entry : map.getRooms())
     {
@@ -53,6 +55,7 @@ int main()
     assert(!map.setLocation("nowhere"));
     assert(map.travelTo("shop") && map.currentRoom().id == "shop");
     assert(!map.travelTo("nowhere"));
+    assert(arrivals == 2); // 成功移动和直达各一次，失败操作不触发人物提示。
 
     Player player("校园测试");
     TimeManager time;

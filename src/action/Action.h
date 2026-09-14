@@ -5,7 +5,6 @@
 
 class Player;
 class CampusMap;
-struct GameProgress;
 
 enum class ActionTime
 {
@@ -21,9 +20,6 @@ private:
     ActionTime currentTime;
     int currentDayOfWeek;
     bool exitRequested;
-    int dailyGoal = 1;
-    StatType goalSubject = StatType::Math;
-    int goalStart = 0;
     CampusMap* world = nullptr;
 
 public:
@@ -41,11 +37,7 @@ public:
     void socialize(Player& player);
 
     void executeDailyAction(Player& player);
-    void beginDay(Player& player);
-    void finishDay(Player& player);
     void setWorld(CampusMap* map);
-    void captureGoal(GameProgress& progress) const;
-    void restoreGoal(const GameProgress& progress);
 
 private:
     void executeClassAction(Player& player);

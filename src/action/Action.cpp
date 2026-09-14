@@ -1,5 +1,4 @@
 #include "Action.h"
-#include "../core/GameProgress.h"
 #include "../world/CampusMap.h"
 #include "../command/CommandParser.h"
 #include "../core/ConsoleUI.h"
@@ -19,18 +18,6 @@ Action::Action()
 }
 
 void Action::setWorld(CampusMap* map) { world = map; }
-void Action::captureGoal(GameProgress& progress) const
-{
-    progress.dailyGoal = dailyGoal;
-    progress.goalSubject = static_cast<int>(goalSubject);
-    progress.goalStart = goalStart;
-}
-void Action::restoreGoal(const GameProgress& progress)
-{
-    dailyGoal = progress.dailyGoal;
-    goalSubject = static_cast<StatType>(progress.goalSubject);
-    goalStart = progress.goalStart;
-}
 
 void Action::setDayOfWeek(int dayOfWeek)
 {
@@ -853,30 +840,6 @@ void Action::executeDailyAction(Player& player)
     showActionResult(player);
 }
 
-void Action::beginDay(Player& player)
-{
-    const StatType subjects[] = {StatType::Chinese, StatType::Math, StatType::English, StatType::Science};
-    goalSubject = subjects[0];
-    for (StatType subject : subjects)
-        if (player.getStats().get(subject) < player.getStats().get(goalSubject)) goalSubject = subject;
-    std::cout << "\n今天的小目标（完成只写入日记，不额外刷属性）：\n"
-              << "1. 补一补" << to_string(goalSubject) << "（今天提升至少2点）\n"
-              << "2. 照顾好状态（结束时体力至少50、压力不超过50）\n"
-              << "3. 主动与人交流（今天情商有增长）\n";
-    if (!CommandParser::readChoice(dailyGoal, 1, 3)) return;
-    goalStart = player.getStats().get(dailyGoal == 3 ? StatType::EQ : goalSubject);
-}
-
-void Action::finishDay(Player& player)
-{
-    const Stats& stats = player.getStats();
-    const bool achieved = dailyGoal == 1 ? stats.get(goalSubject) >= goalStart + 2 :
-        dailyGoal == 2 ? stats.get(StatType::Stamina) >= 50 && stats.get(StatType::Stress) <= 50 :
-        stats.get(StatType::EQ) > goalStart;
-    std::cout << (achieved ? "日记：今天的小目标完成了，平凡的一步也算数。\n" :
-        "日记：今天的目标还没完成，明天可以重新安排。\n");
-}
-
 void Action::executeMorningAction(Player& player)
 {
     std::cout << "1. 英语晨读（英语 +1~3，压力 +2，体力 -2）\n"
@@ -914,9 +877,13 @@ void Action::executeMorningAction(Player& player)
         }
         if (choice == 4)
         {
-            modifyStat(player, goalSubject, 1);
+            const StatType subjects[] = {StatType::Chinese, StatType::Math, StatType::English, StatType::Science};
+            StatType weakest = subjects[0];
+            for (StatType subject : subjects)
+                if (player.getStats().get(subject) < player.getStats().get(weakest)) weakest = subject;
+            modifyStat(player, weakest, 1);
             modifyStat(player, StatType::Stress, -2);
-            std::cout << "把目标分成小步骤。" << to_string(goalSubject) << " +1，压力 -2\n";
+            std::cout << "回顾薄弱科目的笔记。" << to_string(weakest) << " +1，压力 -2\n";
         }
         return;
     }

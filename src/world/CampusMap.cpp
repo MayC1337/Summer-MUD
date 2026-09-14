@@ -4,6 +4,7 @@
 #include <iostream>
 #include <queue>
 #include <set>
+#include <utility>
 
 CampusMap::CampusMap()
 {
@@ -19,6 +20,11 @@ CampusMap::CampusMap()
         {"shop", "商店", "柜台上摆着零食、小说和学习之余的娱乐用品。", {{"north", "canteen"}, {"west", "home"}}}
     };
     for (const auto& room : definitions) rooms.emplace(room.id, room);
+}
+
+void CampusMap::setArrivalHandler(std::function<void()> handler)
+{
+    arrivalHandler = std::move(handler);
 }
 
 bool CampusMap::setLocation(const std::string& id)
@@ -40,6 +46,7 @@ bool CampusMap::move(const std::string& direction)
     }
     current = exit->second;
     look();
+    if (arrivalHandler) arrivalHandler();
     return true;
 }
 
@@ -78,6 +85,7 @@ bool CampusMap::travelTo(const std::string& destination)
         std::cout << (i ? " → " : "") << rooms.at(route[i]).name;
     std::cout << '\n';
     current = destination;
+    if (arrivalHandler) arrivalHandler();
     return true;
 }
 

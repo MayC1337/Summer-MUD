@@ -46,14 +46,53 @@ void GameManager::showPeople() const
 {
     std::cout << "这里的人物：";
     bool present = false;
+    std::string example;
     for (const auto& npc : npcs)
         if (npc.isPresent(world.currentRoom().id, progress.period))
         {
             std::cout << npc.getName() << "(" << npc.getId() << ")  ";
+            if (!present) example = npc.getName();
             present = true;
         }
     if (!present) std::cout << "暂时没有可交谈的人。";
     std::cout << '\n';
+    if (present) std::cout << "输入「交谈 人物名」即可聊天，不耗行动，例如：交谈 " << example << "。\n";
+}
+
+void GameManager::showCampusPeople() const
+{
+    std::cout << "【当前时段 · 地点人物】\n";
+    for (const auto& entry : world.getRooms())
+    {
+        std::cout << entry.second.name << "：";
+        bool present = false;
+        for (const auto& npc : npcs)
+            if (npc.isPresent(entry.first, progress.period))
+            {
+                std::cout << (present ? "、" : "") << npc.getName();
+                present = true;
+            }
+        std::cout << (present ? "\n" : "暂无人物\n");
+    }
+    std::cout << "到达后输入「交谈 人物名」；晚间可移动，聊天不耗行动。\n";
+}
+
+void GameManager::showDailySummary() const
+{
+    const Stats& stats = player->getStats();
+    ConsoleUI::boxTop("今日小结");
+    ConsoleUI::boxLine("体力 " + std::to_string(stats.get(StatType::Stamina)) +
+        "  健康 " + std::to_string(stats.get(StatType::Health)) +
+        "  压力 " + std::to_string(stats.get(StatType::Stress)) +
+        "  金钱 " + std::to_string(player->getMoney()));
+    ConsoleUI::boxLine("学科能力：语文 " + std::to_string(stats.get(StatType::Chinese)) +
+        "  数学 " + std::to_string(stats.get(StatType::Math)) +
+        "  英语 " + std::to_string(stats.get(StatType::English)) +
+        "  理综 " + std::to_string(stats.get(StatType::Science)));
+    ConsoleUI::boxLine(progress.lastWeeklyScore < 0 ? "首次周测：第6天（周六），满分750。" :
+        "最近周测：" + std::to_string(progress.lastWeeklyScore) + " / 750");
+    ConsoleUI::boxLine("学科能力满值100，不是考试分数；输入「状态」查看完整属性。");
+    ConsoleUI::boxBottom();
 }
 
 bool GameManager::handleCommand(const std::string& command)
@@ -83,7 +122,7 @@ bool GameManager::handleCommand(const std::string& command)
         const char* periods[] = {"晨间", "午间", "下午", "晚间"};
         std::cout << "当前时段：" << periods[progress.period] << "；地点：" << world.currentRoom().name << '\n';
     }
-    else if (verb == "map" || verb == "地图") world.show();
+    else if (verb == "map" || verb == "地图") { world.show(); showCampusPeople(); }
     else if (verb == "look" || verb == "观察") { world.look(); showPeople(); }
     else if (verb == "who" || verb == "人物") showPeople();
     else if (verb == "talk" || verb == "交谈")
@@ -133,6 +172,8 @@ GameManager &GameManager::getInstance()
 void GameManager::startGame()
 {
     action.setWorld(&world);
+    // 地图只通知到达，由调度器展示人物，不让地图依赖 NPC 模块。
+    world.setArrivalHandler([this]() { showPeople(); });
     showWelcome();
     eventManager.loadEvents();
 
@@ -180,7 +221,6 @@ void GameManager::startGame()
             }
 
             world.setLocation(progress.location);
-            action.restoreGoal(progress);
             eventManager.setPendingEvent(progress.pendingEvent);
             playerName = player->getName();
             action.clearExitRequest();
@@ -200,6 +240,8 @@ void GameManager::startGame()
 
     CommandParser::setCommandHandler([this](const std::string& command) { return handleCommand(command); });
     std::cout << "输入 help 查看命令；任意选择处可 save 存档、quit 保存退出。\n";
+    std::cout << "玩法：每天选行动，每周六看周测分数，35天后参加高考。\n"
+              << "学习提高学科能力，累了就休息；到达地点会自动提示可交谈人物。\n";
     running = true;
     run();
     CommandParser::setCommandHandler({});
@@ -398,11 +440,10 @@ void GameManager::processCurrentDay()
         showDailyNarration();
         processWeeklyMilestone();
         progress.stage = timeManager.getCurrentDayType() == TimeManager::DayType::Study ?
-            Stage::Goal : Stage::SpecialDay;
+            Stage::Routine : Stage::SpecialDay;
         break;
     case Stage::Goal:
-        action.beginDay(*player);
-        action.captureGoal(progress);
+        // 旧存档可能停在目标选择页，直接跳过，不再询问或结算目标。
         progress.stage = Stage::Routine;
         break;
     case Stage::Routine:
@@ -428,7 +469,6 @@ void GameManager::processCurrentDay()
         if (progress.period == 4)
         {
             progress.period = 3;
-            action.finishDay(*player);
             progress.stage = Stage::DailyEvent;
         }
         else
@@ -444,6 +484,11 @@ void GameManager::processCurrentDay()
             world.setLocation("classroom");
             calculateExam();
             progress.stage = Stage::FinishDay;
+            // 确认前先记录已结算阶段，退出/断流后不能重复考试或领取收益。
+            saveProgress();
+            std::cout << "成绩单已显示。输入1继续（也可输入 quit 保存退出）：";
+            int confirmation = 0;
+            CommandParser::readChoice(confirmation, 1, 1);
         }
         else
         {
@@ -457,8 +502,7 @@ void GameManager::processCurrentDay()
         progress.stage = Stage::FinishDay;
         break;
     case Stage::FinishDay:
-        std::cout << "\n【今日结束状态】\n";
-        player->showStatus();
+        showDailySummary();
         timeManager.advanceDay();
         progress.stage = Stage::DayStart;
         progress.period = 0;
@@ -472,7 +516,6 @@ void GameManager::processCurrentDay()
 void GameManager::executeDailyAction()
 {
     action.setDayOfWeek(timeManager.getDayOfWeek());
-    action.restoreGoal(progress);
     action.setTime(static_cast<ActionTime>(progress.period));
     const auto index = static_cast<std::size_t>(progress.period);
     const auto inputs = !progress.pendingChoices.empty() ? progress.pendingChoices :
@@ -480,6 +523,9 @@ void GameManager::executeDailyAction()
     if (progress.period == 3 && progress.repeat && progress.pendingChoices.empty() &&
         !inputs.empty() && inputs.front() == 6)
         world.travelTo(progress.previousEveningLocation);
+    std::cout << "\n当前位置：" << world.currentRoom().name << '\n';
+    showPeople();
+    if (progress.period == 3) showCampusPeople();
     CommandParser::beginActions(inputs);
     action.executeDailyAction(*player);
     auto choices = CommandParser::endActions();
@@ -575,6 +621,17 @@ void GameManager::calculateExam()
                   << change << " 分\n";
     }
     progress.lastWeeklyScore = result.score;
+
+    // 按得分率比较，不能把满分300的理综与满分150的科目直接比较原始分。
+    const int scores[] = {result.chineseScore, result.mathScore, result.englishScore, result.scienceScore};
+    const int maximums[] = {150, 150, 150, 300};
+    const char* names[] = {"语文", "数学", "英语", "理综"};
+    int weakest = 0;
+    for (int i = 1; i < 4; ++i)
+        if (scores[i] * maximums[weakest] < scores[weakest] * maximums[i]) weakest = i;
+    std::cout << "下周建议：优先复习" << names[weakest] << "（本次得分率 "
+              << scores[weakest] * 100 / maximums[weakest] << "%），兼顾休息。\n"
+              << "周测按当前能力与状态计算，含少量波动，不等于最终高考成绩。\n";
 
     player->modifyStat(StatType::Stress, 5);
     player->modifyStat(StatType::Intelligence, 1);

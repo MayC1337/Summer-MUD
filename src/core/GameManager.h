@@ -36,6 +36,8 @@ private:
     bool saveProgress();
     bool handleCommand(const std::string& command);
     void showPeople() const;
+    void showCampusPeople() const;
+    void showDailySummary() const;
     void processWeeklyMilestone();
 
     GameManager();
