@@ -4,11 +4,12 @@
 #include <vector>
 #include <functional>
 
+// 校园有向地图：管理当前位置、路径搜索和到达回调。
 class CampusMap
 {
     std::map<std::string, Room> rooms;
     std::string current = "gate";
-    std::function<void()> arrivalHandler;
+    std::function<void()> arrivalHandler; // 成功到达后通知上层展示地点相关内容。
 public:
     CampusMap();
     void setArrivalHandler(std::function<void()> handler);

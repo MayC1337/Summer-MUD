@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+// 玩家背包拥有 Item 对象，并按道具 ID 提供查询与移除操作。
 class Inventory
 {
 public:
@@ -18,7 +19,7 @@ public:
     void showItems() const;
 
 private:
-    std::vector<std::unique_ptr<Item>> items_;
+    std::vector<std::unique_ptr<Item>> items_; // 背包对道具拥有唯一所有权。
 };
 
 #endif

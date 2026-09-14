@@ -6,6 +6,7 @@
 
 class Player;
 
+// 一个可触发的传统事件：负责显示、资格判断和选项效果。
 class Event
 {
 private:
@@ -15,7 +16,7 @@ private:
 
     std::string description;
 
-    std::vector<std::string> choices;
+    std::vector<std::string> choices; // 面向玩家展示的选项文本。
 
     Event(
         const std::string &eventId,

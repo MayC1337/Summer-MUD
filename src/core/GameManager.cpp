@@ -20,6 +20,7 @@ const char *getGradeLabel(int rank)
 }
 }
 
+// 单例的构造只建立长期模块；玩家实例在新游戏或读档后才创建。
 GameManager::GameManager()
     : running(false), player(nullptr), timeManager(TimeManager::DEFAULT_TOTAL_DAYS),
       saveManager("save.txt"), npcs(NPC::createCampusNPCs())
@@ -30,6 +31,7 @@ GameManager::~GameManager() = default;
 
 bool GameManager::saveProgress()
 {
+    // 将分散在调度器中的地点、阶段和待选项同步到可序列化进度后再保存。
     progress.location = world.currentRoom().id;
     progress.pendingEvent = eventManager.getPendingEvent();
     if (progress.stage == GameProgress::Stage::Action)
@@ -97,6 +99,7 @@ void GameManager::showDailySummary() const
 
 bool GameManager::handleCommand(const std::string& command)
 {
+    // 信息命令不消耗行动；方向命令仅在晚间、且没有未完成菜单时生效。
     std::istringstream parser(command);
     std::string verb;
     parser >> verb;
@@ -432,6 +435,7 @@ void GameManager::showDailyNarration() const
 void GameManager::processCurrentDay()
 {
     using Stage = GameProgress::Stage;
+    // 该状态机可从存档中间恢复：每次调用只推进一个确定阶段，避免重复结算。
     switch (progress.stage)
     {
     case Stage::DayStart:
@@ -515,6 +519,7 @@ void GameManager::processCurrentDay()
 
 void GameManager::executeDailyAction()
 {
+    // 为当前时段准备可重放输入；仅在有效完成时才记录该时段的选择。
     action.setDayOfWeek(timeManager.getDayOfWeek());
     action.setTime(static_cast<ActionTime>(progress.period));
     const auto index = static_cast<std::size_t>(progress.period);
@@ -550,6 +555,7 @@ void GameManager::executeDailyAction()
 
 void GameManager::processWeeklyMilestone()
 {
+    // 周测/休息日属于日程里程碑，先于普通时段行动结算。
     const int day = timeManager.getCurrentDay();
     const char* titles[] = {"写下心愿", "班级小组挑战", "全校模拟考动员", "毕业照与留言册", "整理最后一张书桌"};
     const char* descriptions[] = {

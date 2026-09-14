@@ -15,6 +15,7 @@ int calculateSubjectScore(
     int maximumScore,
     int randomBonus)
 {
+    // 将能力值映射到单科分数；四科结构合计为 750 分。
     const int percentage = std::clamp(static_cast<int>(std::lround(
         stats.get(subject) * 0.77 +
         stats.get(StatType::Intelligence) * 0.12 +
@@ -81,6 +82,7 @@ ExamResult Exam::takeWeeklyExam(Player& player1) {
 }
 
 ExamResult Exam::takeFinalExam(Player& player1) {
+    // 最终考试沿用周测计算，但额外填充模拟录取去向。
     const int num = 0;
 
     Stats& stats = player1.getStats();

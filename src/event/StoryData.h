@@ -4,6 +4,7 @@
 #include <string>
 #include "../player/Stats.h"
 
+// 叙事链的静态数据。EventManager 只读取本表，不在此处写入运行时状态。
 namespace StoryData
 {
 struct Choice
@@ -19,7 +20,7 @@ struct Node
     const char* id;
     int day;
     int period; // 0晨间、1午间、2下午、3晚间
-    const char* previous;
+    const char* previous; // 前置节点 ID；空串表示该链的起始节点。
     const char* title;
     const char* description;
     const char* warm;

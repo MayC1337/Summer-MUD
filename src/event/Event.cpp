@@ -63,6 +63,7 @@ bool Event::canTrigger(
 
 void Event::applyChoice(Player &player, int choice) const
 {
+    // 事件选项从 1 开始编号；越界输入不产生属性变更。
     Stats &stats = player.getStats();
     if (const auto* node = StoryData::find(id))
     {

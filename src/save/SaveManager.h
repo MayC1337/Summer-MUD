@@ -8,10 +8,11 @@ class TimeManager;
 class EventManager;
 struct GameProgress;
 
+// 负责将各模块的可恢复状态写入同一个存档文件，并在读档时重建它们。
 class SaveManager
 {
 private:
-    std::string saveFile;
+    std::string saveFile; // 存档目标路径，由游戏管理器在构造时指定。
 
 public:
     explicit SaveManager(const std::string &fileName = "save.txt");

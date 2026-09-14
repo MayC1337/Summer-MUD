@@ -12,6 +12,7 @@
 #include <memory>
 #include <random>
 
+// 行动对象不拥有玩家或地图；二者均由外部调度器在每次行动时提供。
 Action::Action()
     : currentTime(ActionTime::Morning), currentDayOfWeek(1), exitRequested(false)
 {
@@ -108,6 +109,7 @@ StatType Action::getScheduledSubject() const
 
 int Action::calculateStudyGain(Player& player, StatType subject, int baseGain)
 {
+    // 学科越接近上限，收益越低；乘数同时反映智力和体力/压力状态。
     const int ability = player.getStats().get(subject);
     int adjustedBase = baseGain;
     if (ability >= 90)
@@ -189,6 +191,7 @@ void Action::sleepInClass(Player& player)
 
 void Action::selfStudy(Player& player)
 {
+    // 专项练习允许玩家在“基础、错题、难题”之间用风险换取更高收益。
     std::cout << "\n========== 自习 ==========\n";
 
     StatType subject = chooseSubject();
@@ -713,6 +716,7 @@ void Action::visitHome(Player& player)
 
 void Action::executeEveningAction(Player& player)
 {
+    // 晚间是唯一开放自由移动的时段；固定目的地和当前位置活动共用同一入口。
     if (world) world->look();
     std::cout << "\n========== 晚间行动 ==========\n";
     std::cout << "1. 图书馆（学习与整理错题）\n";
@@ -812,6 +816,7 @@ void Action::executeEveningAction(Player& player)
 
 void Action::executeDailyAction(Player& player)
 {
+    // 根据 GameManager 写入的时段分派菜单，结束后统一输出时段结算提示。
     ConsoleUI::showPeriod(static_cast<int>(currentTime),
         player.getStats().get(StatType::Stamina), player.getStats().get(StatType::Stress));
     switch (currentTime)

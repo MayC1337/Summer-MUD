@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+// 考试结算值，供成绩展示、成长报告和结局判定共用。
 class ExamResult {
 public:
     int score = 0;      // 返回的分数

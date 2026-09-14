@@ -6,6 +6,7 @@
 #include <set>
 #include <utility>
 
+// 地图数据在构造时固定；后续移动只改变 current，不修改房间拓扑。
 CampusMap::CampusMap()
 {
     const Room definitions[] = {
@@ -52,6 +53,7 @@ bool CampusMap::move(const std::string& direction)
 
 std::vector<std::string> CampusMap::routeTo(const std::string& destination) const
 {
+    // 广度优先搜索最少步路线，供 travelTo 逐段复用普通移动规则。
     if (!rooms.count(destination)) return {};
     std::queue<std::string> pending;
     std::map<std::string, std::string> previous;

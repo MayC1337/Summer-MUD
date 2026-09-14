@@ -18,6 +18,7 @@
 
 class Player;
 
+// 游戏总调度器：协调时间、行动、剧情、存档和结局的阶段流转。
 class GameManager
 {
 private:
@@ -30,8 +31,8 @@ private:
     Exam exam;
     Ending ending;
     SaveManager saveManager;
-    GameProgress progress;
-    CampusMap world;
+    GameProgress progress; // 可序列化的流程状态；实体状态由其他成员分别维护。
+    CampusMap world;       // 校园地点与移动关系。
     std::vector<NPC> npcs;
     bool saveProgress();
     bool handleCommand(const std::string& command);

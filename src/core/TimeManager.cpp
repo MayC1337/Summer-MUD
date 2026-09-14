@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+// elapsedDays 从零计数，避免“第 1 天”与“已过去 1 天”混用。
 TimeManager::TimeManager(int totalDayCount)
     : totalDays(totalDayCount), elapsedDays(0)
 {
@@ -18,6 +19,7 @@ void TimeManager::reset()
 
 bool TimeManager::advanceDay()
 {
+    // 返回值说明推进后是否仍存在可游玩的当前日期。
     if (isFinished())
     {
         return false;

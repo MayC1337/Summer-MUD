@@ -71,6 +71,7 @@ bool isValidStat(int value)
 
 bool validProgress(const GameProgress& progress, int elapsedDays, int totalDays)
 {
+    // 读档前先约束阶段、时段和位置等交叉字段，避免损坏存档进入非法流程。
     const int stage = static_cast<int>(progress.stage);
     if (stage < 0 || stage > 7 || progress.period < 0 || progress.period > 3 ||
         progress.dailyGoal < 1 || progress.dailyGoal > 3 || progress.goalSubject < 5 ||
@@ -118,6 +119,7 @@ bool SaveManager::saveGame(
 bool SaveManager::saveGame(const Player& player, const TimeManager& timeManager,
     const EventManager& eventManager, const GameProgress& progress)
 {
+    // 先写临时文件，再替换正式存档，防止写入中断破坏上一份可用存档。
     if (!validProgress(progress, timeManager.getElapsedDays(), timeManager.getTotalDays()) ||
         player.getName().empty() || player.getName().find_first_of("\r\n") != std::string::npos) return false;
     const auto destination = std::filesystem::u8path(saveFile);
@@ -210,6 +212,7 @@ bool SaveManager::loadGame(
 bool SaveManager::loadGame(Player& player, TimeManager& timeManager,
     EventManager& eventManager, GameProgress& progress)
 {
+    // 严格按版本化字段读取，并在提交到运行时对象前完成所有数据校验。
     std::ifstream input(std::filesystem::u8path(saveFile));
     if (!input)
     {

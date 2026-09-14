@@ -5,6 +5,7 @@
 
 #include "Event.h"
 
+// 按事件 ID 构造预定义事件，集中隔离事件配置与调用方。
 class EventFactory
 {
 public:
