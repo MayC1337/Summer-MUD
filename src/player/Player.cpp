@@ -1,6 +1,8 @@
 #include "Player.h"
+#include "../core/ConsoleUI.h"
 #include "Inventory.h"
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 Player::Player(const std::string& name, std::unique_ptr<Stats> stats, int money)
@@ -44,10 +46,11 @@ const Inventory& Player::getInventory() const { return *inventory_; }
 
 void Player::showStatus() const
 {
-    std::cout << "===== 玩家状态 =====\n";
-    std::cout << "姓名: " << name_ << '\n';
-    std::cout << "金钱: " << money_ << '\n';
+    ConsoleUI::boxTop("玩家状态");
+    std::ostringstream identity;
+    identity << "姓名：" << name_ << "    金钱：¥" << money_;
+    ConsoleUI::boxLine(identity.str());
     stats_->show();
     inventory_->showItems();
-    std::cout << "=====================\n";
+    ConsoleUI::boxBottom();
 }

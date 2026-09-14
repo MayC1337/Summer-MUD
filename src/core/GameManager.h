@@ -2,12 +2,18 @@
 #define GAMEMANAGER_H
 
 #include "TimeManager.h"
+#include "GameProgress.h"
+#include "../world/CampusMap.h"
+#include "../npc/NPC.h"
 #include "../action/Action.h"
 #include "../event/EventManager.h"
 #include "../exam/Exam.h"
+#include "../exam/Ending.h"
 #include "../save/SaveManager.h"
 
 #include <memory>
+#include <array>
+#include <vector>
 #include <string>
 
 class Player;
@@ -22,7 +28,17 @@ private:
     Action action;
     EventManager eventManager;
     Exam exam;
+    Ending ending;
     SaveManager saveManager;
+    GameProgress progress;
+    CampusMap world;
+    std::vector<NPC> npcs;
+    bool saveProgress();
+    bool handleCommand(const std::string& command);
+    void showPeople() const;
+    void showCampusPeople() const;
+    void showDailySummary() const;
+    void processWeeklyMilestone();
 
     GameManager();
     ~GameManager();
@@ -34,6 +50,10 @@ private:
     void calculateExam();
     void takeWeeklyRest();
     void showDayHeader() const;
+    void showChapterIntro() const;
+    void showDailyNarration() const;
+    void showExamDetails(const ExamResult &result) const;
+    void showGrowthReport(const ExamResult &result) const;
     void triggerDailyEvent();
 
 public:

@@ -12,7 +12,7 @@ class Player
 public:
     Player(const std::string& name,
         std::unique_ptr<Stats> stats = nullptr,
-        int money = 0);
+        int money = 2000);
     ~Player();
 
     const std::string& getName() const;

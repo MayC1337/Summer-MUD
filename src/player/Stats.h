@@ -21,15 +21,15 @@ std::string to_string(StatType type);
 class Stats
 {
 public:
-    Stats(int intelligence = 0,
-        int eq = 0,
-        int stamina = 0,
-        int health = 0,
-        int stress = 0,
-        int chinese = 0,
-        int math = 0,
-        int english = 0,
-        int science = 0);
+    Stats(int intelligence = 40,
+        int eq = 40,
+        int stamina = 80,
+        int health = 80,
+        int stress = 10,
+        int chinese = 45,
+        int math = 45,
+        int english = 45,
+        int science = 45);
 
     void modify(StatType type, int change);
     void set(StatType type, int value);

@@ -67,4 +67,14 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
-src/.vscode/tasks.json
+
+# IDE settings
+.vscode/
+
+# Local game state and release artifacts
+save.txt
+*.zip
+deliverables/
+
+# Codex document/presentation build caches
+.codex-*/

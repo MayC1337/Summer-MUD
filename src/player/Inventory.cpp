@@ -1,11 +1,22 @@
 
 #include "Inventory.h"
+#include "../core/ConsoleUI.h"
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 void Inventory::addItem(std::unique_ptr<Item> item)
 {
+    if (!item)
+    {
+        return;
+    }
     items_.push_back(std::move(item));
+}
+
+void Inventory::clear()
+{
+    items_.clear();
 }
 
 bool Inventory::removeItem(const std::string& id)
@@ -29,7 +40,17 @@ const std::vector<std::unique_ptr<Item>>& Inventory::getItems() const
 
 void Inventory::showItems() const
 {
-    if (items_.empty()) { std::cout << "  (背包为空)\n"; return; }
-    std::cout << "----- 背包 -----\n";
-    for (const auto& item : items_) item->show();
+    ConsoleUI::boxDivider("背包");
+    if (items_.empty())
+    {
+        ConsoleUI::boxLine("空");
+        return;
+    }
+
+    for (const auto& item : items_)
+    {
+        std::ostringstream line;
+        line << item->getType() << "  价格：" << item->getPrice();
+        ConsoleUI::boxLine(line.str());
+    }
 }

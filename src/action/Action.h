@@ -4,6 +4,7 @@
 #include <string>
 
 class Player;
+class CampusMap;
 
 enum class ActionTime
 {
@@ -17,12 +18,18 @@ class Action
 {
 private:
     ActionTime currentTime;
+    int currentDayOfWeek;
+    bool exitRequested;
+    CampusMap* world = nullptr;
 
 public:
     Action();
 
     void setTime(ActionTime time);
+    void setDayOfWeek(int dayOfWeek);
     ActionTime getTime() const;
+    bool isExitRequested() const;
+    void clearExitRequest();
 
     void study(Player& player);
     void rest(Player& player);
@@ -30,9 +37,11 @@ public:
     void socialize(Player& player);
 
     void executeDailyAction(Player& player);
+    void setWorld(CampusMap* map);
 
 private:
     void executeClassAction(Player& player);
+    void executeMorningAction(Player& player);
     void executeNoonAction(Player& player);
     void executeEveningAction(Player& player);
 
@@ -43,12 +52,22 @@ private:
     void exercise(Player& player);
     void earlyRest(Player& player);
 
+    void visitLibrary(Player& player);
+    void visitGym(Player& player);
+    void visitArcade(Player& player);
+    void visitShop(Player& player);
+    void visitHome(Player& player);
+    void buyItem(Player& player, const std::string& id,
+        const std::string& name, int price);
+
     void eatSnack(Player& player);
     void playMP4(Player& player);
     void playPhone(Player& player);
     void readNovel(Player& player);
 
     StatType chooseSubject();
+    StatType getScheduledSubject() const;
+    int calculateStudyGain(Player& player, StatType subject, int baseGain);
     double getStudyMultiplier(Player& player);
     void modifyStat(Player& player, StatType type, int delta);
 

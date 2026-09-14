@@ -2,10 +2,10 @@
 
 #include <stdexcept>
 
-TimeManager::TimeManager(int totalDays)
-    : totalDays(totalDays), elapsedDays(0)
+TimeManager::TimeManager(int totalDayCount)
+    : totalDays(totalDayCount), elapsedDays(0)
 {
-    if (totalDays <= 0)
+    if (totalDayCount <= 0)
     {
         throw std::invalid_argument("totalDays must be greater than zero");
     }
